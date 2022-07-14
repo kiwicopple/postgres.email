@@ -1,9 +1,9 @@
 import { GetStaticProps } from "next"
 import Head from "next/head"
-import WithSidebar from "../components/layouts/WithSidebar"
-import { NextPageWithLayout } from "../lib/types"
+import WithSidebar from "../../components/layouts/WithSidebar"
+import { NextPageWithLayout } from "../../lib/types"
 import { dehydrate, QueryClient } from "react-query"
-import { getMailboxes, useMailboxesQuery } from "../lib/data/mailboxes"
+import { getMailboxes, useMailboxesQuery } from "../../lib/data/mailboxes"
 
 const IndexPage: NextPageWithLayout = () => {
   const { data, isSuccess, isLoading, isError, error } = useMailboxesQuery()
@@ -38,6 +38,20 @@ export const getStaticProps: GetStaticProps = async () => {
     },
     revalidate: 60,
   }
+}
+
+// This function gets called at build time
+export async function getStaticPaths() {
+  const { mailboxes } = await getMailboxes()
+
+  // Get the paths we want to pre-render based on posts
+  const paths = mailboxes.map((list) => ({
+    params: { listId: list.id },
+  }))
+
+  // We'll pre-render only these paths at build time.
+  // { fallback: false } means other routes should 404.
+  return { paths, fallback: false }
 }
 
 export default IndexPage

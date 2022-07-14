@@ -6,17 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "definitions": "openapi-typescript http://localhost:54321/rest/v1/?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.625_WdcF3KHqz5amU0x2X5WWHP-OEs_4qj0ssLNHzTs --output lib/definitions.ts"
   },
   "dependencies": {
     "@headlessui/react": "^1.6.6",
     "@heroicons/react": "^1.0.6",
+    "@supabase/supabase-js": "^1.35.4",
     "@tailwindcss/forms": "^0.5.2",
     "imap": "^0.8.19",
     "mailparser": "^3.5.0",
     "next": "12.2.2",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "react-hot-toast": "^2.3.0",
+    "react-query": "^3.39.1"
   },
   "devDependencies": {
     "@types/imap": "^0.8.35",
@@ -27,6 +31,7 @@
     "autoprefixer": "^10.4.7",
     "eslint": "8.19.0",
     "eslint-config-next": "12.2.2",
+    "openapi-typescript": "^5.4.1",
     "postcss": "^8.4.14",
     "tailwindcss": "^3.1.6",
     "typescript": "4.7.4"
