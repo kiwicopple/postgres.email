@@ -9,11 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "imap": "^0.8.19",
+    "mailparser": "^3.5.0",
     "next": "12.2.2",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@types/imap": "^0.8.35",
+    "@types/mailparser": "^3.4.0",
     "@types/node": "18.0.3",
     "@types/react": "18.0.15",
     "@types/react-dom": "18.0.6",
