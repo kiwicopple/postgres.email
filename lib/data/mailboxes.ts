@@ -73,6 +73,8 @@ export async function getMailbox(
     .from<MailboxWithMessages>("mailboxes")
     .select(`*,messages(*)`)
     .eq("id", id)
+    // @ts-ignore
+    .is("messages.in_reply_to", null)
 
   if (signal) {
     query = query.abortSignal(signal)
