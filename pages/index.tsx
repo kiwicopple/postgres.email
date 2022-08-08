@@ -16,9 +16,15 @@ const IndexPage: NextPageWithLayout = () => {
       </Head>
 
       <main>
-        <h1 className="text-3xl font-bold ">Hello world!</h1>
+        <h1 className="text-3xl font-bold ">PostgreSQL Mailing Lists</h1>
+        <h3 className="text-xl font-bold ">
+          Browse all Postgres mailing lists online.
+        </h3>
 
-        {isSuccess && data.mailboxes.map((x) => <div key={x.id}>{x.id}</div>)}
+        <div>
+          <p>Most popular:</p>
+          {isSuccess && data.mailboxes.map((x) => <div key={x.id}>{x.id}</div>)}
+        </div>
       </main>
     </>
   )

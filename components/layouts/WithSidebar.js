@@ -39,7 +39,7 @@ export default function Example({ children }) {
     useMailboxesQuery()
 
   return (
-    <div className="h-full bg-gray-100">
+    <div className="h-full ">
       <Transition.Root show={sidebarOpen} as={Fragment}>
         <Dialog
           as="div"
@@ -136,7 +136,7 @@ export default function Example({ children }) {
       </Transition.Root>
 
       {/* Static sidebar for desktop */}
-      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
+      <div className="hidden md:flex md:w-48 md:flex-col md:fixed md:inset-y-0">
         {/* Sidebar component, swap this element with another sidebar if you like */}
         <div className="flex flex-col flex-grow border-r border-gray-200 pt-5 bg-white overflow-y-auto">
           <div className="flex items-center flex-shrink-0 px-4">
@@ -154,7 +154,7 @@ export default function Example({ children }) {
           </div>
         </div>
       </div>
-      <div className="md:pl-64 flex flex-col flex-1">
+      <div className="md:pl-48 flex flex-col flex-1 h-full">
         <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white shadow">
           <button
             type="button"
@@ -237,13 +237,7 @@ export default function Example({ children }) {
           </div>
         </div>
 
-        <main className="flex-1">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-              {children}
-            </div>
-          </div>
-        </main>
+        <main className="flex-1 h-full">{children}</main>
       </div>
     </div>
   )

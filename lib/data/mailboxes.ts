@@ -71,10 +71,12 @@ export async function getMailbox(
 
   let query = supabase
     .from<MailboxWithMessages>("mailboxes")
-    .select(`*,messages(*)`)
+    .select(`*,messages!mailbox_id(*)`)
     .eq("id", id)
     // @ts-ignore
     .is("messages.in_reply_to", null)
+    // @ts-ignore
+    .order("ts", { foreignTable: "messages", ascending: false })
 
   if (signal) {
     query = query.abortSignal(signal)
