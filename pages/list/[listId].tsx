@@ -30,7 +30,7 @@ const ListPage: NextPageWithLayout = ({}) => {
       </Head>
 
       <div className="h-full ">
-        <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0 pt-10">
+        <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
           <nav className="flex flex-col flex-grow border-r border-gray-200 pt-5 bg-white overflow-y-auto mt-1">
             <ul>
               {mailbox.messages.map((message) => (

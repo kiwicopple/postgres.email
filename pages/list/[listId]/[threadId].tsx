@@ -9,6 +9,7 @@ import { useParams } from "lib/utils"
 import { arrayToTree, TreeItem } from "performant-array-to-tree"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
+import Button from "components/utils/Button"
 
 const ListPage: NextPageWithLayout = ({}) => {
   const { listId, threadId } = useParams()
@@ -28,8 +29,8 @@ const ListPage: NextPageWithLayout = ({}) => {
       </Head>
 
       <div className="h-full ">
-        <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0 pt-10">
-          <nav className="flex flex-col flex-grow border-r border-gray-200 pt-5 bg-white overflow-y-auto mt-1">
+        <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
+          <nav className="flex flex-col flex-grow border-r border-slate-100 bg-white overflow-y-auto">
             <ul>
               {mailbox.messages.map((message) => (
                 <MessageThread
@@ -68,7 +69,7 @@ const MessageThread = ({
   const timestamp = new Date(message.ts!).toLocaleDateString()
   return (
     <Link href={href} passHref>
-      <a className={isActive ? "text-red-600" : ""}>
+      <a className={isActive ? "text-black" : "text-gray-500"}>
         <li
           key={message.id}
           className="flex flex-col p-2 py-4 border-b hover:bg-gray-100 text-sm"
@@ -89,6 +90,7 @@ const MessageThread = ({
 }
 
 const Thread = ({ threadId }: { threadId: string }) => {
+  const [showMarkdown, setShowMarkdown] = React.useState(false)
   const { data, isLoading, isError, error } = useThreadQuery(threadId)
 
   if (isLoading) return <div>Loading</div>
@@ -100,20 +102,37 @@ const Thread = ({ threadId }: { threadId: string }) => {
 
   return (
     <div className="h-full overflow-scroll">
-      <div className="flex flex-col flex-grow">
-        <div className="whitespace-nowrap text-ellipsis overflow-hidden bg-white px-4 py-6 border-b">
+      <div className="bg-white p-4 border-b sticky top-0 space-y-2 z-50">
+        <div className="whitespace-nowrap text-ellipsis overflow-hidden">
           {thread[0].subject}
         </div>
+        <div>
+          <Button
+            size="xs"
+            label="Markdown"
+            isActive={showMarkdown}
+            onClick={() => setShowMarkdown(!showMarkdown)}
+          />
+        </div>
       </div>
-      <ul className="flex flex-row whitespace-pre-wrap m-2">
-        {tree.data && <ThreadItem tree={tree} level={0} />}
+      <ul className="flex flex-row whitespace-pre-wrap">
+        {tree.data && (
+          <ThreadItem tree={tree} level={0} markdown={showMarkdown} />
+        )}
       </ul>
     </div>
   )
 }
 
-const ThreadItem = ({ tree, level }: { tree: TreeItem; level: number }) => {
-  const [showMarkdown, setShowMarkdown] = React.useState(false)
+const ThreadItem = ({
+  tree,
+  level,
+  markdown,
+}: {
+  tree: TreeItem
+  level: number
+  markdown: boolean
+}) => {
   const [showDetails, setShowDetails] = React.useState(true)
   const message: Thread = tree.data
   const children: { data: Thread; children: any }[] = tree.children
@@ -122,49 +141,49 @@ const ThreadItem = ({ tree, level }: { tree: TreeItem; level: number }) => {
 
   const isOdd = level % 2 === 0
   const colors = isOdd
-    ? ["bg-green-100 border-green-200"]
-    : ["bg-indigo-50 border-indigo-100"]
+    ? ["bg-slate-50 hover:border-blue-200"]
+    : ["bg-white hover:border-blue-200"]
 
   return (
-    <li key={message.id} className={`border rounded w-full pr-2 ${colors}`}>
-      <details className="relative overflow-hidden pb-4" open={showDetails}>
-        <a
-          onClick={() => setShowDetails(!showDetails)}
-          className={`comment-border-link cursor-pointer block absolute top-0 left-0 w-2 h-full border-l-8 ${colors}`}
-        >
-          <span className="sr-only">Jump to comment-1</span>
-        </a>
-        <summary className="pl-6 mb-4 cursor-pointer list-none text-sm p-2">
-          <div className="font-bold">
-            <p>
-              {`<${message.from_email}>`} {message.ts}
-            </p>
-          </div>
-        </summary>
-        <div className="pl-6 prose">
-          {showMarkdown ? (
-            <ReactMarkdown>{message.body_text || ""}</ReactMarkdown>
-          ) : (
-            message.body_text
-          )}
-        </div>
-        <div className="thread-footer ml-4 py-4">
+    <li key={message.id} className={`border w-full border-slate-200`}>
+      <div className={`w-full pr-2 ${colors}`}>
+        <details className="relative overflow-hidden pb-4" open={showDetails}>
           <a
-            className="cursor-pointer"
-            onClick={() => setShowMarkdown(!showMarkdown)}
+            onClick={() => setShowDetails(!showDetails)}
+            className={`comment-border-link cursor-pointer block absolute top-0 left-0 w-2 h-full border-l-8 ${colors}`}
           >
-            Toggle Markdown
+            <span className="sr-only">Jump to comment-1</span>
           </a>
-        </div>
+          <summary className="pl-6 mb-4 cursor-pointer list-none text-sm p-2">
+            <div className="font-bold">
+              <p>
+                {`<${message.from_email}>`} {message.ts}
+              </p>
+            </div>
+          </summary>
+          <div className="pl-6 prose">
+            {markdown ? (
+              <ReactMarkdown>{message.body_text || ""}</ReactMarkdown>
+            ) : (
+              message.body_text
+            )}
+          </div>
+          <div className="thread-footer ml-4 py-4">FOOTER</div>
 
-        {children && children.length > 0 && (
-          <ul className={"replies ml-4 pt-2 space-y-5"}>
-            {children.map((node, idx) => (
-              <ThreadItem tree={node} key={idx} level={level + 1} />
-            ))}
-          </ul>
-        )}
-      </details>
+          {children && children.length > 0 && (
+            <ul className={"replies ml-4 pt-2 space-y-5"}>
+              {children.map((node, idx) => (
+                <ThreadItem
+                  tree={node}
+                  key={idx}
+                  level={level + 1}
+                  markdown={markdown}
+                />
+              ))}
+            </ul>
+          )}
+        </details>
+      </div>
     </li>
   )
 }
