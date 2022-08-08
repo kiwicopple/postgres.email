@@ -943,19 +943,11 @@ body,
     width: 12rem;
   }
 
-  .md\:w-80 {
-    width: 20rem;
-  }
-
   .md\:flex-col {
     flex-direction: column;
   }
 
   .md\:pl-48 {
     padding-left: 12rem;
-  }
-
-  .md\:pl-80 {
-    padding-left: 20rem;
   }
 }

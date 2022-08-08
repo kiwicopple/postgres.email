@@ -30,18 +30,25 @@ export default function ListId() {
   const list = useLoaderData() as LoaderData
   //   console.log("id", list)
   return (
-    <nav className="flex flex-col flex-grow border-r border-slate-100 bg-white overflow-y-auto">
-      <ul>
-        {list.messages.map((message) => (
-          <MessageThread
-            key={message.id}
-            message={message}
-            href={`/lists/${list.id}/${message.id}`}
-            isActive={false}
-          />
-        ))}
-      </ul>
-    </nav>
+    <div>
+      <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
+        <nav className="flex flex-col flex-grow border-r border-slate-100 bg-white overflow-y-auto">
+          <ul>
+            {list.messages.map((message) => (
+              <MessageThread
+                key={message.id}
+                message={message}
+                href={`/lists/${list.id}/${message.id}`}
+                isActive={false}
+              />
+            ))}
+          </ul>
+        </nav>
+      </div>
+      <div className="md:pl-80 flex flex-col flex-1 h-full">
+        <Outlet />
+      </div>
+    </div>
   )
 }
 
