@@ -28,7 +28,7 @@ export const loader: LoaderFunction = async ({ params }) => {
 
 export default function ListId() {
   const list = useLoaderData() as LoaderData
-  console.log("id", list)
+  //   console.log("id", list)
   return (
     <nav className="flex flex-col flex-grow border-r border-slate-100 bg-white overflow-y-auto">
       <ul>
@@ -36,7 +36,7 @@ export default function ListId() {
           <MessageThread
             key={message.id}
             message={message}
-            href={`/list/${list.id}/${message.id}`}
+            href={`/lists/${list.id}/${message.id}`}
             isActive={false}
           />
         ))}

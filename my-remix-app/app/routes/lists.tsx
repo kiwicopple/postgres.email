@@ -27,7 +27,7 @@ export default function Index() {
   return (
     <div>
       <nav>
-        <h1>Lists</h1>
+        <h1 className="text-3xl font-bold underline">Listss</h1>
         <ul>
           {lists?.map((list) => (
             <li key={list.id}>
