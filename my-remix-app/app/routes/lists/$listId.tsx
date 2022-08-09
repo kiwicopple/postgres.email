@@ -1,6 +1,12 @@
 import invariant from "tiny-invariant"
 import { json } from "@remix-run/node"
-import { Link, Outlet, useLoaderData } from "@remix-run/react"
+import {
+  NavLink,
+  Link,
+  Outlet,
+  useLoaderData,
+  useLocation,
+} from "@remix-run/react"
 import { getListDetail } from "~/models/list.server"
 import type { LoaderFunction } from "@remix-run/node"
 
@@ -10,25 +16,31 @@ import type {
   ListDetailDataError,
 } from "~/models/list.server"
 
-type LoaderData = NonNullable<ListDetailDataSuccess>
-type Message = LoaderData["messages"][0]
+type LoaderData = {
+  data: NonNullable<ListDetailDataSuccess>
+  listId: string
+  threadId: string | undefined
+}
+type Message = LoaderData["data"]["messages"][0]
 
 export const loader: LoaderFunction = async ({ params }) => {
-  invariant(params.id, `params.id is required`)
+  const { listId, threadId } = params
 
-  const { data, error } = await getListDetail(params.id!)
+  invariant(listId, `params.listId is required`)
+
+  const { data, error } = await getListDetail(listId!)
 
   invariant(!error, `Error: ${error?.message}`)
-  invariant(data, `List not found: ${params.id}`)
+  invariant(data, `List not found: ${listId}`)
 
   // ignore next line
   // @ts-ignore
-  return json<ListDetailDataSuccess>(data)
+  return json<ListDetailDataSuccess>({ data, listId, threadId })
 }
 
-export default function ListId() {
-  const list = useLoaderData() as LoaderData
-  //   console.log("id", list)
+export default function List() {
+  const { data: list, listId, threadId } = useLoaderData() as LoaderData
+  console.log("threadId", threadId)
   return (
     <div>
       <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
@@ -39,7 +51,6 @@ export default function ListId() {
                 key={message.id}
                 message={message}
                 href={`/lists/${list.id}/${message.id}`}
-                isActive={false}
               />
             ))}
           </ul>
@@ -55,18 +66,29 @@ export default function ListId() {
 const MessageThread = ({
   message,
   href,
-  isActive,
 }: {
   message: Message
   href: string
-  isActive: boolean
 }) => {
   const from = message.from_addresses!
   // @ts-ignore
   const sender: { Name?: string; Address: string } = from[0]
   const timestamp = new Date(message.ts!).toLocaleDateString()
+
+  // PMC:
+  // For some reason Remix's built-in "isActive" deosn't work.
+  // I suspect it's because it's not decoding the URL?
+  const location = useLocation()
+  const isActive = decodeURI(location.pathname) === href
+  const activeClass = "text-red"
+  const inactiveClass = "text-gray-500"
+
   return (
-    <Link to={href} className={isActive ? "text-black" : "text-gray-500"}>
+    <NavLink
+      to={href}
+      className={isActive ? activeClass : inactiveClass}
+      prefetch="intent"
+    >
       <li
         key={message.id}
         className="flex flex-col p-2 py-4 border-b hover:bg-gray-100 text-sm"
@@ -81,6 +103,6 @@ const MessageThread = ({
           {message.subject}
         </div>
       </li>
-    </Link>
+    </NavLink>
   )
 }

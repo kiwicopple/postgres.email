@@ -42,6 +42,7 @@ export default function Index() {
             <nav className="flex-1 px-2 pb-4 space-y-1">
               {lists?.map((item) => (
                 <Link
+                  key={item.id}
                   to={`/lists/${item.id}`}
                   className={
                     "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer"
