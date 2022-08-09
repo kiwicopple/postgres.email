@@ -44,7 +44,7 @@ export default function List() {
   return (
     <div>
       <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
-        <nav className="bg-white z-50 flex flex-col flex-grow border-r border-slate-100 bg-white overflow-y-auto">
+        <nav className="z-50 flex flex-col flex-grow border-r overflow-y-auto">
           <ul>
             {list.messages.map((message) => (
               <MessageThread
@@ -91,7 +91,7 @@ const MessageThread = ({
     >
       <li
         key={message.id}
-        className="flex flex-col p-2 py-4 border-b hover:bg-gray-100 text-sm"
+        className="flex flex-col p-2 py-4 border-b hover:bg-gray-800 text-sm"
       >
         <div className="flex flex-row">
           <span className="font-bold flex-grow whitespace-nowrap text-ellipsis overflow-hidden">

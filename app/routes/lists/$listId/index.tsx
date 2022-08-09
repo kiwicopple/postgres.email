@@ -1,3 +1,3 @@
 export default function NoMessaeSelected() {
-  return <div>Select a message</div>
+  return <div className="p-10">Select a message</div>
 }

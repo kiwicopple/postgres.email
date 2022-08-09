@@ -48,7 +48,7 @@ export default function Thread() {
   const tree = arrayToTree(thread, { parentId: "in_reply_to" })[0]
   return (
     <div className="relative">
-      <div className="bg-white shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
+      <div className="bg-gray-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
         <div className="whitespace-nowrap text-ellipsis overflow-hidden">
           {thread[0].subject}
         </div>
@@ -61,7 +61,7 @@ export default function Thread() {
           />
         </div>
       </div>
-      <ul className="flex flex-row whitespace-pre-wrap">
+      <ul className="flex flex-row whitespace-pre-wrap p-4">
         {tree.data && (
           <ThreadItem tree={tree} level={0} markdown={showMarkdown} />
         )}
@@ -87,14 +87,18 @@ const ThreadItem = ({
 
   const isOdd = level % 2 === 0
   const colors = isOdd
-    ? ["bg-white border-blue-200 hover:border-blue-300"]
-    : ["bg-gray-50 border-blue-200 hover:border-blue-300"]
+    ? ["bg-gray-900 border-gray-700 hover:border-blue-300"]
+    : ["bg-gray-800 border-gray-700 hover:border-blue-300"]
 
   return (
-    <li key={message.id} className={`border w-full border-slate-200`}>
+    <li
+      key={message.id}
+      className={`border w-full border rounded-lg overflow-hidden`}
+    >
       <div className={`w-full pr-2 ${colors}`}>
         <details className="relative overflow-hidden pb-4" open={showDetails}>
           <a
+            href="#"
             onClick={() => setShowDetails(!showDetails)}
             className={`comment-border-link cursor-pointer block absolute top-0 left-0 w-2 h-full border-l-8 ${colors}`}
           >
@@ -107,7 +111,7 @@ const ThreadItem = ({
               </p>
             </div>
           </summary>
-          <div className="pl-6 prose">
+          <div className="pl-6 prose text-gray-200">
             {markdown ? message.body_text : message.body_text}
           </div>
           <div className="thread-footer ml-4 py-4">FOOTER</div>
