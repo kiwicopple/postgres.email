@@ -41,7 +41,7 @@ export const loader: LoaderFunction = async ({ params }) => {
   return json({ data, listId, threadId })
 }
 
-export default function Thread() {
+export default function ThreadPage() {
   const [showMarkdown, setShowMarkdown] = useState(false)
   const { data: thread, listId, threadId } = useLoaderData() as LoaderData
   //   console.log("data", thread)
@@ -52,16 +52,16 @@ export default function Thread() {
         <div className="whitespace-nowrap text-ellipsis overflow-hidden">
           {thread[0].subject}
         </div>
-        <div>
+        {/* <div>
           <Button
             size="xs"
             label="Markdown"
             isActive={showMarkdown}
             onClick={() => setShowMarkdown(!showMarkdown)}
           />
-        </div>
+        </div> */}
       </div>
-      <ul className="flex flex-row whitespace-pre-wrap p-4">
+      <ul className="flex flex-row whitespace-pre-wrap py-4">
         {tree.data && (
           <ThreadItem tree={tree} level={0} markdown={showMarkdown} />
         )}
@@ -84,21 +84,27 @@ const ThreadItem = ({
   const children: { data: Thread; children: any }[] = tree.children
 
   if (!message) return null
+  console.log("level", level)
 
+  const isRoot = level == 0
+  console.log("isRoot", isRoot)
   const isOdd = level % 2 === 0
-  const colors = isOdd
-    ? ["bg-gray-900 border-gray-700 hover:border-blue-300"]
-    : ["bg-gray-800 border-gray-700 hover:border-blue-300"]
+  const colors = isRoot
+    ? "border-none"
+    : isOdd
+    ? ["bg-gray-900 border-gray-900 hover:border-blue-300"]
+    : ["bg-gray-800 border-gray-800 hover:border-blue-300"]
 
   return (
     <li
       key={message.id}
-      className={`border w-full border rounded-lg overflow-hidden`}
+      id={`message-${message.id}`}
+      className={`w-full rounded-md overflow-hidden`}
     >
       <div className={`w-full pr-2 ${colors}`}>
         <details className="relative overflow-hidden pb-4" open={showDetails}>
           <a
-            href="#"
+            href={`#message-${message.id}`}
             onClick={() => setShowDetails(!showDetails)}
             className={`comment-border-link cursor-pointer block absolute top-0 left-0 w-2 h-full border-l-8 ${colors}`}
           >
@@ -114,7 +120,7 @@ const ThreadItem = ({
           <div className="pl-6 prose text-gray-200">
             {markdown ? message.body_text : message.body_text}
           </div>
-          <div className="thread-footer ml-4 py-4">FOOTER</div>
+          <div className="thread-footer ml-4 py-4">{/* Not yet used */}</div>
 
           {children && children.length > 0 && (
             <ul className={"replies ml-4 pt-2 space-y-5"}>
