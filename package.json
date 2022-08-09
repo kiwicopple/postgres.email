@@ -1,43 +1,44 @@
 {
-  "name": "postgres.email",
-  "version": "0.1.0",
   "private": true,
+  "sideEffects": false,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "definitions": "openapi-typescript http://localhost:54321/rest/v1/?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.625_WdcF3KHqz5amU0x2X5WWHP-OEs_4qj0ssLNHzTs --output lib/definitions.ts"
+    "build": "run-s \"build:*\"",
+    "build:css": "npm run generate:css -- --minify",
+    "build:remix": "remix build",
+    "dev": "run-p \"dev:*\"",
+    "dev:css": "npm run generate:css -- --watch",
+    "dev:remix": "remix dev",
+    "generate:css": "npx tailwindcss -i ./styles/app.css -o ./app/generated.css",
+    "start": "remix-serve build"
   },
   "dependencies": {
-    "@headlessui/react": "^1.6.6",
-    "@heroicons/react": "^1.0.6",
-    "@supabase/supabase-js": "^1.35.4",
-    "@tailwindcss/forms": "^0.5.2",
-    "imap": "^0.8.19",
-    "mailparser": "^3.5.0",
-    "next": "12.2.2",
-    "npm": "^8.15.1",
+    "@remix-run/node": "^1.6.7",
+    "@remix-run/react": "^1.6.7",
+    "@remix-run/vercel": "^1.6.7",
+    "@supabase/supabase-js": "^1.36.0-next.12",
+    "@vercel/node": "^2.4.4",
     "performant-array-to-tree": "^1.11.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-hot-toast": "^2.3.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-markdown": "^8.0.3",
-    "react-query": "^3.39.1"
+    "tiny-invariant": "^1.2.0"
   },
   "devDependencies": {
+    "@remix-run/dev": "^1.6.7",
+    "@remix-run/eslint-config": "^1.6.7",
+    "@remix-run/serve": "^1.6.7",
+    "@tailwindcss/forms": "^0.5.2",
     "@tailwindcss/typography": "^0.5.4",
-    "@types/imap": "^0.8.35",
-    "@types/mailparser": "^3.4.0",
-    "@types/node": "18.0.3",
-    "@types/react": "18.0.15",
-    "@types/react-dom": "18.0.6",
-    "autoprefixer": "^10.4.7",
-    "eslint": "8.19.0",
-    "eslint-config-next": "12.2.2",
-    "openapi-typescript": "^5.4.1",
-    "postcss": "^8.4.14",
-    "tailwindcss": "^3.1.6",
-    "typescript": "4.7.4"
+    "@types/react": "^17.0.47",
+    "@types/react-dom": "^17.0.17",
+    "autoprefixer": "^10.4.8",
+    "eslint": "^8.20.0",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.4.16",
+    "tailwindcss": "^3.1.8",
+    "typescript": "^4.7.4"
+  },
+  "engines": {
+    "node": ">=14"
   }
 }
