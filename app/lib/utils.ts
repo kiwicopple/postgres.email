@@ -1,6 +1,3 @@
-import { useRouter } from "next/router"
-import { useMemo } from "react"
-
 export function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(" ")
 }
@@ -28,20 +25,42 @@ export function getPagination(page?: number, size: number = DEFAULT_PAGE_SIZE) {
   return { from, to }
 }
 
-export function useParams() {
-  const { query } = useRouter()
+export function formatMeta(meta: Record<string, string>) {
+  const descriptor: Record<string, string> = {
+    title: "Postgres Email Lists",
+    "og:site_name": "postgres-email",
+    "og:type": "website",
+  }
 
-  return useMemo(
-    () =>
-      Object.fromEntries(
-        Object.entries(query).map(([key, value]) => {
-          if (Array.isArray(value)) {
-            return [key, value[0]]
-          } else {
-            return [key, value]
-          }
-        })
-      ),
-    [query]
-  )
+  for (const [key, value] of Object.entries(meta)) {
+    if (!key || !value) {
+      continue
+    }
+
+    switch (key) {
+      case "title": {
+        const title =
+          value === descriptor["title"]
+            ? descriptor["title"]
+            : `${value} - ${descriptor["title"]}`
+
+        descriptor["title"] = title
+        descriptor["og:title"] = title
+        descriptor["twitter:title"] = title
+        break
+      }
+      case "description": {
+        descriptor["description"] = value
+        descriptor["og:description"] = value
+        descriptor["twitter:description"] = value
+        break
+      }
+      default: {
+        descriptor[key] = value
+        break
+      }
+    }
+  }
+
+  return descriptor
 }

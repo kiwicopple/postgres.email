@@ -1,29 +1,15 @@
-import { json } from "@remix-run/node"
-import { Link, Outlet, useLoaderData } from "@remix-run/react"
+import { redirect } from "@remix-run/node"
+import { formatMeta } from "~/lib/utils"
+import type { MetaFunction } from "@remix-run/node"
 
-import { getLists } from "~/models/list.server"
-
-type LoaderData = {
-  lists: Awaited<ReturnType<typeof getLists>>
-}
-
-export const loader = async () => {
-  return json<LoaderData>({
-    lists: await getLists(),
+export let meta: MetaFunction = () => {
+  return formatMeta({
+    title: "Postgres.email",
+    description: "PostgreSQL Email Lists, with a more readable interface",
+    "og:url": "https://postgres.email",
   })
 }
 
-export default function Index() {
-  const { lists } = useLoaderData() as LoaderData
-  console.log(lists)
-  return (
-    <div>
-      <nav>
-        <h1>Lists</h1>
-      </nav>
-      <main>
-        <Outlet />
-      </main>
-    </div>
-  )
+export const loader = async () => {
+  throw redirect("/lists/pgsql-hackers")
 }
