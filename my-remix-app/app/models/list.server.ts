@@ -1,4 +1,4 @@
-import supabase from "./supabase"
+import supabase from "~/lib/supabase"
 import type { Database } from "~/lib/database.types"
 
 type messages = Database["public"]["Tables"]["messages"]["Row"]
