@@ -1,25 +1,14 @@
 import invariant from "tiny-invariant"
 // import Markdown from "react-markdown" // Not working!
 import { json } from "@remix-run/node"
-import {
-  NavLink,
-  Link,
-  Outlet,
-  useLoaderData,
-  useLocation,
-} from "@remix-run/react"
+import { useLoaderData } from "@remix-run/react"
 import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "~/models/thread.server"
 import type { LoaderFunction } from "@remix-run/node"
 import type { TreeItem } from "performant-array-to-tree"
-import Button from "~/components/Button"
+// import Button from "~/components/Button"
 
-import type {
-  ThreadData,
-  ThreadDataSuccess,
-  ThreadDataError,
-  Thread,
-} from "~/models/thread.server"
+import type { ThreadDataSuccess, Thread } from "~/models/thread.server"
 import { useState } from "react"
 
 type LoaderData = {
@@ -99,7 +88,9 @@ const ThreadItem = ({
     <li
       key={message.id}
       id={`message-${message.id}`}
-      className={`w-full rounded-md overflow-hidden`}
+      className={`w-full rounded-md overflow-hidden ${
+        isRoot ? "" : "border border-gray-700"
+      }`}
     >
       <div className={`w-full pr-2 ${colors}`}>
         <details className="relative overflow-hidden pb-4" open={showDetails}>
