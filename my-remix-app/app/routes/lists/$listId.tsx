@@ -44,7 +44,7 @@ export default function List() {
   return (
     <div>
       <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
-        <nav className="flex flex-col flex-grow border-r border-slate-100 bg-white overflow-y-auto">
+        <nav className="bg-white z-50 flex flex-col flex-grow border-r border-slate-100 bg-white overflow-y-auto">
           <ul>
             {list.messages.map((message) => (
               <MessageThread

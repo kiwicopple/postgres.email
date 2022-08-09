@@ -12,6 +12,7 @@ import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "~/models/thread.server"
 import type { LoaderFunction } from "@remix-run/node"
 import type { TreeItem } from "performant-array-to-tree"
+import Button from "~/components/Button"
 
 import type {
   ThreadData,
@@ -47,17 +48,17 @@ export default function Thread() {
   const tree = arrayToTree(thread, { parentId: "in_reply_to" })[0]
   return (
     <div className="relative">
-      <div className="bg-white p-4 border-b sticky top-0 space-y-2 z-50">
+      <div className="bg-white shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
         <div className="whitespace-nowrap text-ellipsis overflow-hidden">
           {thread[0].subject}
         </div>
         <div>
-          {/* <Button
+          <Button
             size="xs"
             label="Markdown"
             isActive={showMarkdown}
             onClick={() => setShowMarkdown(!showMarkdown)}
-          /> */}
+          />
         </div>
       </div>
       <ul className="flex flex-row whitespace-pre-wrap">
@@ -86,8 +87,8 @@ const ThreadItem = ({
 
   const isOdd = level % 2 === 0
   const colors = isOdd
-    ? ["bg-slate-50 hover:border-blue-200"]
-    : ["bg-white hover:border-blue-200"]
+    ? ["bg-white border-blue-200 hover:border-blue-300"]
+    : ["bg-gray-50 border-blue-200 hover:border-blue-300"]
 
   return (
     <li key={message.id} className={`border w-full border-slate-200`}>

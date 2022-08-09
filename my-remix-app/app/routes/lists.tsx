@@ -1,8 +1,9 @@
 import invariant from "tiny-invariant"
 import { json } from "@remix-run/node"
-import { Link, Outlet, useLoaderData } from "@remix-run/react"
+import { NavLink, Link, Outlet, useLoaderData } from "@remix-run/react"
 import { getLists } from "~/models/list.server"
 import { classNames } from "~/lib/utils"
+import QuickSearch from "~/components/QuickSearch"
 
 import type { LoaderFunction } from "@remix-run/node"
 import type {
@@ -25,6 +26,12 @@ export const loader: LoaderFunction = async () => {
 export default function Index() {
   const lists = useLoaderData() as LoaderData
 
+  // PMC: WHY IS THIS NOT WORKING?
+  const baseClass =
+    "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer"
+  const activeClass = baseClass + "text-gray-500"
+  const inactiveClass = baseClass + "text-gray-400 group-hover:text-gray-500"
+
   return (
     <div className="h-full ">
       <div className="hidden md:flex md:w-48 md:flex-col md:fixed md:inset-y-0">
@@ -37,19 +44,21 @@ export default function Index() {
               alt="Workflow"
             />
           </div>
-          <div className="m-3 flex flex-col">{/* <QuickSearch /> */}</div>
+          <div className="m-3 flex flex-col">
+            <QuickSearch />
+          </div>
           <div className="mt-3 flex-grow flex flex-col">
             <nav className="flex-1 px-2 pb-4 space-y-1">
               {lists?.map((item) => (
-                <Link
+                <NavLink
                   key={item.id}
                   to={`/lists/${item.id}`}
-                  className={
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer"
+                  className={({ isActive }) =>
+                    isActive ? activeClass : inactiveClass
                   }
                 >
                   {item.id}
-                </Link>
+                </NavLink>
               ))}
             </nav>
           </div>
