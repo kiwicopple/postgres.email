@@ -1,7 +1,13 @@
 import clsx from "clsx"
 import invariant from "tiny-invariant"
 import { json } from "@remix-run/node"
-import { NavLink, Link, Outlet, useLoaderData } from "@remix-run/react"
+import {
+  NavLink,
+  Link,
+  Outlet,
+  useLoaderData,
+  useLocation,
+} from "@remix-run/react"
 import { getLists } from "~/models/list.server"
 import QuickSearch from "~/components/QuickSearch"
 
@@ -12,20 +18,26 @@ import type {
   ListsDataError,
 } from "~/models/list.server"
 
-type LoaderData = ListsDataSuccess
+type LoaderData = {
+  data: NonNullable<ListsDataSuccess>
+  listId: string | undefined
+}
 
-export const loader: LoaderFunction = async () => {
+export const loader: LoaderFunction = async ({ params }) => {
   const { data, error } = await getLists()
+  console.log("params", params)
 
   invariant(!error, `Error: ${error?.message}`)
   invariant(data, `List not found`)
 
-  return json<ListsDataSuccess>(data)
+  return json<LoaderData>({ data, listId: params.listId })
 }
 
 export default function Index() {
-  const lists = useLoaderData() as LoaderData
+  const location = useLocation()
+  const { data: lists, listId } = useLoaderData() as LoaderData
 
+  console.log("location", location)
   const baseClass =
     "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer"
   const activeClass = baseClass + "text-gray-500"
@@ -53,7 +65,7 @@ export default function Index() {
                   to={`/lists/${item.id}`}
                   className={clsx(
                     "px-3 py-1.5 flex items-center gap-4 transition-colors rounded-lg group",
-                    false // Need an isActive flag for this
+                    listId // Need an isActive flag for this
                       ? "text-gray-200 bg-gray-700"
                       : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
                   )}

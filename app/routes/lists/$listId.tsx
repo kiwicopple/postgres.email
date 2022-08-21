@@ -40,7 +40,7 @@ export const loader: LoaderFunction = async ({ params }) => {
 
 export default function List() {
   const { data: list, listId, threadId } = useLoaderData() as LoaderData
-  console.log("threadId", threadId)
+  // console.log("threadId", threadId)
   return (
     <div>
       <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
