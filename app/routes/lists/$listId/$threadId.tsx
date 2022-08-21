@@ -75,11 +75,8 @@ const ThreadItem = ({
   if (!message) return null
 
   const isRoot = level == 0
-  const isOdd = level % 2 === 0
   const colors = isRoot
     ? "border-none"
-    : isOdd
-    ? ["border-gray-800 hover:border-orange-500"]
     : ["border-gray-800 hover:border-orange-500"]
 
   return (
@@ -90,24 +87,50 @@ const ThreadItem = ({
         isRoot ? "" : "border-gray-900"
       }`}
     >
-      <div className={`w-full ${colors}`}>
-        <details className="relative overflow-hidden" open={showDetails}>
+      <div className={`w-full`}>
+        <details className={`relative overflow-hidden `} open={showDetails}>
           <a
             href={`#message-${message.id}`}
-            onClick={() => setShowDetails(!showDetails)}
+            onClick={(e) => {
+              e.preventDefault()
+              setShowDetails(!showDetails)
+              return true
+            }}
             className={`comment-border-link cursor-pointer block absolute top-0 left-0 w-2 h-full border-l-12 ${colors}`}
           >
             <span className="sr-only">Jump to comment-1</span>
           </a>
-          <summary className="pl-6 mb-1 cursor-pointer list-none text-sm p-2">
-            <p>
-              <span className="text-orange-500 font-bold pr-4">{`${message.from_email}`}</span>
+          <summary
+            className={`cursor-pointer list-none text-sm ${
+              showDetails ? "" : colors + " border-l-12"
+            }`}
+            onClick={(e) => {
+              e.preventDefault()
+              setShowDetails(!showDetails)
+            }}
+          >
+            <p
+              className={`border-b py-2 ${
+                isRoot
+                  ? "px-3 border-gray-900"
+                  : !showDetails
+                  ? "border-gray-700 px-3"
+                  : "border-gray-900 px-6"
+              }`}
+            >
+              <span className="text-orange-500 font-bold pr-4">
+                {`${message.from_email}`}
+              </span>
               <span className="text-gray-500" title={message.ts || ""}>
                 {message.ts}
               </span>
             </p>
           </summary>
-          <div className="pl-6 prose text-gray-200 text-sm">
+          <div
+            className={`prose text-gray-200 text-sm ${
+              isRoot ? "pl-3" : "pl-6"
+            }`}
+          >
             {markdown ? message.body_text : message.body_text}
           </div>
           <div className="thread-footer py-4 border-b border-gray-700">
