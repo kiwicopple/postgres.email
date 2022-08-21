@@ -28,6 +28,8 @@ export default function QuickSearch() {
           type="text"
           name="search"
           id="search"
+          disabled={true}
+          placeholder="Search coming soon"
           className="shadow-sm focus:ring-gray-600 focus:border-gray-600 block w-full pr-12 sm:text-sm border rounded-md bg-gray-900 border-gray-800"
         />
         <div className="absolute inset-y-0 right-0 flex py-1.5 pr-1.5">

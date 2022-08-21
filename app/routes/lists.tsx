@@ -37,7 +37,7 @@ export default function Index() {
       <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
         {/* Sidebar component, swap this element with another sidebar if you like */}
         <div className="flex flex-col flex-grow border-r pt-5 overflow-y-auto">
-          <div className="flex items-center flex-shrink-0 px-4 font-mono text-lg">
+          <div className="flex items-center flex-shrink-0 px-4 font-mono text-lg text-orange-500">
             postgres.email
           </div>
           <div className="m-3 flex flex-col my-10">
