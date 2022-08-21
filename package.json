@@ -9,6 +9,7 @@
     "dev:css": "npm run generate:css -- --watch",
     "dev:remix": "remix dev",
     "generate:css": "npx tailwindcss -i ./styles/app.css -o ./app/generated.css",
+    "generate:types": "supabase gen types typescript --local > ./app/lib/database.types.ts",
     "start": "remix-serve build"
   },
   "dependencies": {

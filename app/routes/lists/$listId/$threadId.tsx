@@ -50,7 +50,7 @@ export default function ThreadPage() {
           />
         </div> */}
       </div>
-      <ul className="flex flex-row whitespace-pre-wrap py-4">
+      <ul className="flex flex-row whitespace-pre-wrap">
         {tree.data && (
           <ThreadItem tree={tree} level={0} markdown={showMarkdown} />
         )}
@@ -73,48 +73,49 @@ const ThreadItem = ({
   const children: { data: Thread; children: any }[] = tree.children
 
   if (!message) return null
-  console.log("level", level)
 
   const isRoot = level == 0
-  console.log("isRoot", isRoot)
   const isOdd = level % 2 === 0
   const colors = isRoot
     ? "border-none"
     : isOdd
-    ? ["bg-gray-900 border-gray-900 hover:border-blue-300"]
-    : ["bg-gray-800 border-gray-800 hover:border-blue-300"]
+    ? ["border-gray-800 hover:border-orange-500"]
+    : ["border-gray-800 hover:border-orange-500"]
 
   return (
     <li
       key={message.id}
       id={`message-${message.id}`}
-      className={`w-full rounded-md overflow-hidden ${
-        isRoot ? "" : "border border-gray-700"
+      className={`w-full overflow-hidden border-l ${
+        isRoot ? "" : "border-gray-900"
       }`}
     >
-      <div className={`w-full pr-2 ${colors}`}>
-        <details className="relative overflow-hidden pb-4" open={showDetails}>
+      <div className={`w-full ${colors}`}>
+        <details className="relative overflow-hidden" open={showDetails}>
           <a
             href={`#message-${message.id}`}
             onClick={() => setShowDetails(!showDetails)}
-            className={`comment-border-link cursor-pointer block absolute top-0 left-0 w-2 h-full border-l-8 ${colors}`}
+            className={`comment-border-link cursor-pointer block absolute top-0 left-0 w-2 h-full border-l-12 ${colors}`}
           >
             <span className="sr-only">Jump to comment-1</span>
           </a>
-          <summary className="pl-6 mb-4 cursor-pointer list-none text-sm p-2">
-            <div className="font-bold">
-              <p>
-                {`<${message.from_email}>`} {message.ts}
-              </p>
-            </div>
+          <summary className="pl-6 mb-1 cursor-pointer list-none text-sm p-2">
+            <p>
+              <span className="text-orange-500 font-bold pr-4">{`${message.from_email}`}</span>
+              <span className="text-gray-500" title={message.ts || ""}>
+                {message.ts}
+              </span>
+            </p>
           </summary>
-          <div className="pl-6 prose text-gray-200">
+          <div className="pl-6 prose text-gray-200 text-sm">
             {markdown ? message.body_text : message.body_text}
           </div>
-          <div className="thread-footer ml-4 py-4">{/* Not yet used */}</div>
+          <div className="thread-footer py-4 border-b border-gray-700">
+            {/* Not yet used */}
+          </div>
 
           {children && children.length > 0 && (
-            <ul className={"replies ml-4 pt-2 space-y-5"}>
+            <ul className={`replies ${isRoot ? "" : "ml-3"}`}>
               {children.map((node, idx) => (
                 <ThreadItem
                   tree={node}

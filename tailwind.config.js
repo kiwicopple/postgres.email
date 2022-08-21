@@ -12,6 +12,12 @@ module.exports = {
         "3xl": "1700px",
         "4xl": "1921px",
       },
+      borderWidth: {
+        10: "10px",
+        12: "12px",
+        14: "14px",
+        16: "16px",
+      },
       colors: {
         gray: colors.neutral,
       },
