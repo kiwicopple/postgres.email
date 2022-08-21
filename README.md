@@ -5,22 +5,38 @@
 
 A website to display all Postgres emails.
 
-## Development
+## Background
 
-- [Remix Docs](https://remix.run/docs)
+This is a small POC to transform the Postgres [mailing lists](https://www.postgresql.org/list/) more readable.
 
-### Deployment
+As a comparison:
 
-After having run the `create-remix` command and selected "Vercel" as a deployment target, you only need to [import your Git repository](https://vercel.com/new) into Vercel, and it will be deployed.
+- ["COPY TO (FREEZE)?" on postgres.email](https://postgres.email/lists/pgsql-hackers/%3C20220802.133046.1941977979333284049.horikyota.ntt@gmail.com%3E)
+- ["COPY TO (FREEZE)?" on postgres list](https://www.postgresql.org/message-id/20220802.133046.1941977979333284049.horikyota.ntt%40gmail.com)
 
-If you'd like to avoid using a Git repository, you can also deploy the directory by running [Vercel CLI](https://vercel.com/cli):
+The idea of postgres.email is to make all responses threaded, like the comments on HN or Reddit.
 
-```sh
-npm i -g vercel
-vercel
-```
+This uses an imap Foreign Data Wrapper to ingest the messages into a Postgres database. For the POC, only ingested 1000 messages, and it doesn't display attachments.
 
-It is generally recommended to use a Git repository, because future commits will then automatically be deployed by Vercel, through its [Git Integration](https://vercel.com/docs/concepts/git).
+
+The technologies used are:
+
+- Gmail to receive the email
+- Steampipe for the FDW: https://hub.steampipe.io/plugins/turbot/imap
+- Supabase for the Postgres database / APIs: https://supabase.com
+- Remix for the frontend: https://remix.run/
+
+Given the size of the mailing lists, I doubt the current approach will scale much further than the POC, so I'll need to re-think the architecture. 
+I'll probably keep the emails in gmail and and leverage the FDW for older messages.
+
+Some things I'd like to do next:
+
+- explore alternative architectures
+- show attachments
+- add a REST API 
+- add search - the size of the mailing lists might make this difficult
+- allow readers to toggle on a "markdown" view. Often authors use markdown syntax in their emails 
+- add a light mode
 
 ## Development
 
@@ -33,9 +49,9 @@ npm install
 Afterwards, start the Remix development server like so:
 
 ```sh
+supabase start
 npm run dev
 ```
 
 Open up [http://localhost:3000](http://localhost:3000) and you should be ready to go!
 
-If you're used to using the `vercel dev` command provided by [Vercel CLI](https://vercel.com/cli) instead, you can also use that, but it's not needed.
