@@ -109,7 +109,7 @@ const ThreadItem = ({
               setShowDetails(!showDetails)
             }}
           >
-            <p
+            <div
               className={`border-b py-2 ${
                 isRoot
                   ? "px-3 border-gray-900"
@@ -124,7 +124,7 @@ const ThreadItem = ({
               <span className="text-gray-500" title={message.ts || ""}>
                 {message.ts}
               </span>
-            </p>
+            </div>
           </summary>
           <div
             className={`prose text-gray-200 text-sm ${
