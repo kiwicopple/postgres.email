@@ -26,7 +26,6 @@ export const loader: LoaderFunction = async () => {
 export default function Index() {
   const lists = useLoaderData() as LoaderData
 
-  // PMC: WHY IS THIS NOT WORKING?
   const baseClass =
     "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer"
   const activeClass = baseClass + "text-gray-500"

@@ -1760,6 +1760,10 @@ body,
   height: 100%;
 }
 
+details summary::-webkit-details-marker {
+  display: none;
+}
+
 .hover\:border-orange-500:hover {
   --tw-border-opacity: 1;
   border-color: rgb(249 115 22 / var(--tw-border-opacity));
