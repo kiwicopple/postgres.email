@@ -1,7 +1,7 @@
 import invariant from "tiny-invariant"
 // import Markdown from "react-markdown" // Not working!
 import { json } from "@remix-run/node"
-import { useLoaderData } from "@remix-run/react"
+import { Link, useLoaderData } from "@remix-run/react"
 import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "~/models/thread.server"
 import type { LoaderFunction } from "@remix-run/node"
@@ -37,9 +37,16 @@ export default function ThreadPage() {
   const tree = arrayToTree(thread, { parentId: "in_reply_to" })[0]
   return (
     <div className="relative">
-      <div className="bg-gray-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
-        <div className="whitespace-nowrap text-ellipsis overflow-hidden">
-          {thread[0].subject}
+      <div className="bg-orange-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
+        <div className="flex flex-row">
+          <Link to={`/lists/${listId}`} className="md:hidden flex mr-4">
+            <div className="inline-flex items-center border bg-orange-800 border-orange-700 hover:border-orange-400 rounded px-2 text-sm font-sans font-medium text-gray-400">
+              ❮
+            </div>
+          </Link>
+          <p className="flex whitespace-nowrap text-ellipsis overflow-hidden order-last">
+            {thread[0].subject}
+          </p>
         </div>
         {/* <div>
           <Button

@@ -10,11 +10,7 @@ import {
 import { getListDetail } from "~/models/list.server"
 import type { LoaderFunction } from "@remix-run/node"
 
-import type {
-  ListDetailData,
-  ListDetailDataSuccess,
-  ListDetailDataError,
-} from "~/models/list.server"
+import type { ListDetailDataSuccess } from "~/models/list.server"
 
 type LoaderData = {
   data: NonNullable<ListDetailDataSuccess>
@@ -33,17 +29,36 @@ export const loader: LoaderFunction = async ({ params }) => {
   invariant(!error, `Error: ${error?.message}`)
   invariant(data, `List not found: ${listId}`)
 
-  // ignore next line
-  // @ts-ignore
-  return json<ListDetailDataSuccess>({ data, listId, threadId })
+  return json({ data, listId, threadId })
 }
 
 export default function List() {
-  const { data: list, listId, threadId } = useLoaderData() as LoaderData
-  // console.log("threadId", threadId)
+  const location = useLocation()
+  const { data: list, listId } = useLoaderData() as LoaderData
+  const threadSelected = location.pathname != `/lists/${listId}`
+
   return (
     <div>
-      <div className="hidden md:flex md:w-80 md:flex-col md:fixed md:inset-y-0">
+      <div
+        className={`${
+          threadSelected ? "hidden" : ""
+        } md:flex md:w-80 md:flex-col md:fixed md:inset-y-0`}
+      >
+        <div className="md:hidden bg-orange-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
+          <div className="flex flex-row">
+            <p className="flex whitespace-nowrap text-ellipsis overflow-hidden order-last">
+              {listId}
+            </p>
+          </div>
+          {/* <div>
+          <Button
+            size="xs"
+            label="Markdown"
+            isActive={showMarkdown}
+            onClick={() => setShowMarkdown(!showMarkdown)}
+          />
+        </div> */}
+        </div>
         <nav className="z-50 flex flex-col flex-grow border-r overflow-y-auto">
           <ul>
             {list.messages.map((message) => (
