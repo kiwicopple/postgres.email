@@ -84,7 +84,7 @@ const MessageThread = ({
   const inactiveClass = "text-gray-500"
 
   return (
-    <NavLink
+    <Link
       to={href}
       className={isActive ? activeClass : inactiveClass}
       prefetch="intent"
@@ -103,6 +103,6 @@ const MessageThread = ({
           {message.subject}
         </div>
       </li>
-    </NavLink>
+    </Link>
   )
 }
