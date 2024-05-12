@@ -1,7 +1,6 @@
 require("dotenv").config()
-const postgres = require("postgres")
-const OpenAI = require("openai")
 const { createClient } = require("@supabase/supabase-js")
+const OpenAI = require("openai")
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -11,6 +10,13 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
+
+function cleanseText(text) {
+  return text
+    .split("\n") // Split by new lines
+    .filter((line) => !line.trim().startsWith(">")) // Remove lines starting with '>'
+    .join(" ") // Join remaining lines with a space
+}
 
 async function fetchMessages() {
   try {
@@ -26,9 +32,10 @@ async function fetchMessages() {
 
 async function generateEmbedding(text) {
   try {
+    const cleansedText = cleanseText(text)
     const response = await openai.embeddings.create({
       model: "text-embedding-ada-002",
-      input: text,
+      input: cleansedText,
       encoding_format: "float",
     })
     return response.data[0].embedding
