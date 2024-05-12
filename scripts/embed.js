@@ -20,10 +20,9 @@ function cleanseText(text) {
 
 async function fetchMessages() {
   try {
-    const { data } = await supabase
-      .from("messages")
-      .select("id, body_text")
-      .range(0, 3)
+    const { data } = await supabase.from("messages").select("id, body_text")
+    // .range(0, 3)
+
     return data
   } catch (error) {
     console.error("Error fetching messages:", error)

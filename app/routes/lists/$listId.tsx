@@ -86,8 +86,9 @@ const MessageThread = ({
   href: string
 }) => {
   const from = message.from_addresses!
+  console.log("from", from)
   // @ts-ignore
-  const sender: { Name?: string; Address: string } = from[0]
+  const sender: { name?: string; address: string } = from[0]
   const timestamp = new Date(message.ts!).toLocaleDateString()
 
   // PMC:
@@ -110,7 +111,7 @@ const MessageThread = ({
       >
         <div className="flex flex-row">
           <span className="font-bold flex-grow whitespace-nowrap text-ellipsis overflow-hidden">
-            {sender.Name || sender.Address}
+            {sender.name || sender.address || sender}
           </span>
           <span className="text-xs">{timestamp}</span>
         </div>
