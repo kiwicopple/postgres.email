@@ -1,29 +1,6 @@
+-- This migration is safe to copy/paste for future migrations
 
-create table mailboxes (
-    id text primary key, 
-    message_count integer
-);
-
-create table messages (
-    id text UNIQUE,
-    mailbox_id text references mailboxes(id),
-    in_reply_to text,
-    ts timestamptz,
-    subject text,
-    from_email text,
-    to_addresses jsonb,
-    cc_addresses jsonb,
-    bcc_addresses jsonb,
-    from_addresses jsonb,
-    seq_num integer,
-    size bigint,
-    attachments jsonb,
-    body_text text,
-    embedded_files jsonb,
-    headers jsonb
-);
-
-create recursive view threads (
+create or replace recursive view threads (
     id,
     thread_id,
     mailbox_id,
@@ -41,7 +18,9 @@ create recursive view threads (
     body_text,
     embedded_files,
     headers
-) as 
+)
+with (security_invoker=on)
+as 
   select 
     messages.id,
     messages.id, -- the first message is the start of the thread
