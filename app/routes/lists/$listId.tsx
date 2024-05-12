@@ -86,7 +86,6 @@ const MessageThread = ({
   href: string
 }) => {
   const from = message.from_addresses!
-  console.log("from", from)
   // @ts-ignore
   const sender: { name?: string; address: string } = from[0]
   const timestamp = new Date(message.ts!).toLocaleDateString()
