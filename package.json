@@ -10,8 +10,10 @@
     "dev:remix": "remix dev",
     "generate:css": "npx tailwindcss -i ./styles/app.css -o ./app/generated.css",
     "generate:types": "supabase gen types typescript --local > ./app/lib/database.types.ts",
-    "parse": "node scripts/parse.js",
-    "embed": "node scripts/embed.js",
+    "parse": "node  -r dotenv/config scripts/parse.js",
+    "parse:prod": "node  -r dotenv/config scripts/parse.js dotenv_config_path=.env.prod",
+    "embed": "node  -r dotenv/config scripts/embed.js",
+    "embed:prod": "node  -r dotenv/config scripts/embed.js dotenv_config_path=.env.prod",
     "start": "remix-serve build"
   },
   "dependencies": {

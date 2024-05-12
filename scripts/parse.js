@@ -5,13 +5,7 @@ const { Pool } = require("pg")
 const iconv = require("iconv-lite")
 
 // PostgreSQL pool configuration
-const pool = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "postgres",
-  password: "postgres",
-  port: 54322,
-})
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
 async function parseMboxFile(filePath) {
   const stream = fs.createReadStream(filePath)

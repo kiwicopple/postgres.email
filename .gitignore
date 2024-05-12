@@ -4,6 +4,7 @@ node_modules
 .cache
 .env
 .env.local
+.env.prod
 .vercel
 .output
 
