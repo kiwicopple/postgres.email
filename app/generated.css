@@ -1772,11 +1772,6 @@ details summary::-webkit-details-marker {
   --tw-ring-color: rgb(82 82 82 / var(--tw-ring-opacity));
 }
 
-.group:hover .group-hover\:text-gray-500 {
-  --tw-text-opacity: 1;
-  color: rgb(115 115 115 / var(--tw-text-opacity));
-}
-
 @media (min-width: 640px) {
   .sm\:text-sm {
     font-size: 0.875rem;
