@@ -14,6 +14,7 @@ node_modules
 /api/_assets
 
 fdw.sql
+archives/**/*
 
 # Supabase
 .branches
