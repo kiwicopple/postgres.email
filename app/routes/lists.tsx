@@ -40,8 +40,9 @@ export default function Index() {
   console.log("location", location)
   const baseClass =
     "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer"
-  const activeClass = baseClass + "text-gray-500"
-  const inactiveClass = baseClass + "text-gray-400 group-hover:text-gray-500"
+  const activeClass = baseClass + "text-gray-200 bg-gray-700"
+  const inactiveClass =
+    baseClass + "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
 
   return (
     <div className="h-full ">
@@ -65,9 +66,9 @@ export default function Index() {
                   to={`/lists/${item.id}`}
                   className={clsx(
                     "px-3 py-1.5 flex items-center gap-4 transition-colors rounded-lg group",
-                    listId // Need an isActive flag for this
-                      ? "text-gray-200 bg-gray-700"
-                      : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                    listId == item.id // Need an isActive flag for this
+                      ? activeClass
+                      : inactiveClass
                   )}
                 >
                   <>

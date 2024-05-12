@@ -1,8 +1,6 @@
+-- This migration is safe to copy/paste for future migrations
 
-alter table mailboxes enable row level security;
-alter table messages enable row level security;
-
-
+drop policy if exists "Read only" on public.mailboxes;
 create policy "Read only"
 on public.mailboxes
 for select 
@@ -11,6 +9,7 @@ using (
   true
 );
 
+drop policy if exists "Read only" on public.messages;
 create policy "Read only"
 on public.messages
 for select 

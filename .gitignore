@@ -3,6 +3,7 @@ node_modules
 .DS_Store
 .cache
 .env
+.env.local
 .vercel
 .output
 
@@ -14,6 +15,7 @@ node_modules
 /api/_assets
 
 fdw.sql
+archives/**/*
 
 # Supabase
 .branches
