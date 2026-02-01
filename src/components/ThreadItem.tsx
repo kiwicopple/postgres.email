@@ -246,7 +246,7 @@ export default function ThreadItem({
           <div
             className={`text-gray-200 text-sm leading-relaxed ${
               isRoot ? "pl-3 pr-3" : "pl-6 pr-3"
-            } py-3 font-mono`}
+            } py-3`}
           >
             <FormattedBody text={message.body_text} />
           </div>

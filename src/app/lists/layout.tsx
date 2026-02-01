@@ -26,7 +26,7 @@ export default async function ListsLayout({
       <MobileNav lists={lists} />
       <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
         <div className="flex flex-col flex-grow border-r pt-5 overflow-y-auto">
-          <div className="flex items-center flex-shrink-0 px-4 font-mono text-lg text-blue-400">
+          <div className="flex items-center flex-shrink-0 px-4 text-lg text-blue-400">
             postgres.email
           </div>
           <div className="m-3 flex flex-col my-10">
@@ -36,7 +36,7 @@ export default async function ListsLayout({
             <h4>Lists</h4>
           </div>
           <div className="mt-3 flex-grow flex flex-col">
-            <nav className="flex-1 px-2 pb-4 space-y-1 text-sm font-mono">
+            <nav className="flex-1 px-2 pb-4 space-y-1 text-sm">
               {lists?.map((item) => (
                 <Link
                   key={item.id}

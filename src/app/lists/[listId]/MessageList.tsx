@@ -27,7 +27,7 @@ export default function MessageList({
       >
         <div className="md:hidden bg-blue-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
           <div className="flex flex-row">
-            <p className="flex whitespace-nowrap text-ellipsis overflow-hidden order-last font-mono">
+            <p className="flex whitespace-nowrap text-ellipsis overflow-hidden order-last">
               {listId}
             </p>
           </div>

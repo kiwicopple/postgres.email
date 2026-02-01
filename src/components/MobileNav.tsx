@@ -14,7 +14,7 @@ export default function MobileNav({ lists }: { lists: ListItem[] }) {
   return (
     <div className="md:hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <span className="font-mono text-lg text-blue-400">postgres.email</span>
+        <span className="text-lg text-blue-400">postgres.email</span>
         <button
           onClick={() => setOpen(!open)}
           className="p-2 rounded text-gray-400 hover:text-gray-200 hover:bg-gray-800"
@@ -38,7 +38,7 @@ export default function MobileNav({ lists }: { lists: ListItem[] }) {
               key={item.id}
               href={`/lists/${item.id}`}
               onClick={() => setOpen(false)}
-              className="flex items-center justify-between px-3 py-2 text-sm font-mono text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-md"
+              className="flex items-center justify-between px-3 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-md"
             >
               <span>{item.id}</span>
               <span className="text-xs">{item.message_count}</span>
