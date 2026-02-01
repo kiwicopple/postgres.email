@@ -108,7 +108,7 @@ export default function ThreadItem({
   const isRoot = level == 0
   const colors = isRoot
     ? "border-none"
-    : ["border-gray-800 hover:border-orange-500"]
+    : ["border-gray-800 hover:border-blue-400"]
 
   return (
     <li
@@ -150,7 +150,7 @@ export default function ThreadItem({
               }`}
             >
               <div className="truncate">
-                <span className="text-orange-500 font-bold">
+                <span className="text-blue-400 font-bold">
                   {senderName}
                 </span>
                 {senderName !== message.from_email && (

@@ -25,7 +25,7 @@ export default function MessageList({
           threadSelected ? "hidden" : ""
         } md:flex md:w-80 md:flex-col md:fixed md:inset-y-0`}
       >
-        <div className="md:hidden bg-orange-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
+        <div className="md:hidden bg-blue-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
           <div className="flex flex-row">
             <p className="flex whitespace-nowrap text-ellipsis overflow-hidden order-last">
               {listId}

@@ -20,10 +20,10 @@ export default async function ThreadPage({
 
   return (
     <div className="relative">
-      <div className="bg-orange-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
+      <div className="bg-blue-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
         <div className="flex flex-row">
           <Link href={`/lists/${listId}`} className="md:hidden flex mr-4">
-            <div className="inline-flex items-center border bg-orange-800 border-orange-700 hover:border-orange-400 rounded px-2 text-sm font-sans font-medium text-gray-400">
+            <div className="inline-flex items-center border bg-blue-800 border-blue-700 hover:border-blue-400 rounded px-2 text-sm font-sans font-medium text-gray-400">
               ❮
             </div>
           </Link>

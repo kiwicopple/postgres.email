@@ -25,7 +25,7 @@ export default async function SearchPage({
   return (
     <div>
       <div>
-        <div className="md:hidden bg-orange-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
+        <div className="md:hidden bg-blue-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
           <div className="flex flex-row">
             <p className="flex whitespace-nowrap text-ellipsis overflow-hidden order-last">
               Search: {query}
@@ -41,7 +41,7 @@ export default async function SearchPage({
                 <div className={`relative overflow-hidden `}>
                   <div className={`cursor-pointer list-none text-sm`}>
                     <div className={`border-b py-2 "px-3 border-gray-900"`}>
-                      <span className="text-orange-500 font-bold pr-4">
+                      <span className="text-blue-400 font-bold pr-4">
                         {`${message.from_email}`}
                       </span>
                       <span className="text-gray-500" title={message.ts || ""}>

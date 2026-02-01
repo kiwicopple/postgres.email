@@ -24,7 +24,7 @@ export default async function ListsLayout({
     <div className="h-full ">
       <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
         <div className="flex flex-col flex-grow border-r pt-5 overflow-y-auto">
-          <div className="flex items-center flex-shrink-0 px-4 font-mono text-lg text-orange-500">
+          <div className="flex items-center flex-shrink-0 px-4 font-mono text-lg text-blue-400">
             postgres.email
           </div>
           <div className="m-3 flex flex-col my-10">
