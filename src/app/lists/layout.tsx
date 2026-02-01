@@ -36,7 +36,7 @@ export default async function ListsLayout({
             <h4>Lists</h4>
           </div>
           <div className="mt-3 flex-grow flex flex-col">
-            <nav className="flex-1 px-2 pb-4 space-y-1 text-sm">
+            <nav className="flex-1 px-2 pb-4 space-y-1 text-sm font-mono">
               {lists?.map((item) => (
                 <Link
                   key={item.id}
