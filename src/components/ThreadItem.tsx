@@ -75,10 +75,15 @@ function FormattedBody({ text }: { text: string | null }) {
     }
   }
 
+  // Matches lines indented with a tab, or 4+ spaces, or 2+ spaces followed
+  // by content that looks code-like. We strip the leading whitespace.
+  const indentPattern = /^(\t|    | {2,}(?=\S))/
+  const isIndented = (l: string) => indentPattern.test(l) && l.trim().length > 0
+  const stripIndent = (l: string) => l.replace(/^(\t|    | {2,})/, "")
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const quoteMatch = line.match(/^(>[\s>]*)/)
-    const isCodeLine = line.startsWith("    ") && line.trim().length > 0
 
     if (quoteMatch) {
       flushCode()
@@ -88,17 +93,16 @@ function FormattedBody({ text }: { text: string | null }) {
       }
       quoteDepth = depth
       currentQuote.push(line.replace(/^[>\s]+/, ""))
-    } else if (isCodeLine) {
+    } else if (isIndented(line)) {
       flushQuote()
-      currentCode.push(line.slice(4))
+      currentCode.push(stripIndent(line))
     } else {
       flushQuote()
       // If we're in a code block and hit a blank line, check if more code follows
       if (line.trim() === "" && currentCode.length > 0) {
-        // Look ahead for another indented line
         let hasMoreCode = false
         for (let j = i + 1; j < lines.length; j++) {
-          if (lines[j].startsWith("    ") && lines[j].trim().length > 0) {
+          if (isIndented(lines[j])) {
             hasMoreCode = true
             break
           }
