@@ -38,6 +38,7 @@ function FormattedBody({ text }: { text: string | null }) {
   const elements: React.ReactNode[] = []
   let currentQuote: string[] = []
   let quoteDepth = 0
+  let currentCode: string[] = []
 
   const flushQuote = () => {
     if (currentQuote.length > 0) {
@@ -59,19 +60,40 @@ function FormattedBody({ text }: { text: string | null }) {
     }
   }
 
+  const flushCode = () => {
+    if (currentCode.length > 0) {
+      const code = currentCode.join("\n")
+      elements.push(
+        <pre
+          key={`c-${elements.length}`}
+          className="my-2 p-3 bg-gray-800 rounded text-xs text-gray-300 overflow-x-auto"
+        >
+          <code>{code}</code>
+        </pre>
+      )
+      currentCode = []
+    }
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const quoteMatch = line.match(/^(>[\s>]*)/)
+    const isCodeLine = line.startsWith("    ") && line.trim().length > 0
 
     if (quoteMatch) {
+      flushCode()
       const depth = (line.match(/>/g) || []).length
       if (currentQuote.length > 0 && depth !== quoteDepth) {
         flushQuote()
       }
       quoteDepth = depth
       currentQuote.push(line.replace(/^[>\s]+/, ""))
+    } else if (isCodeLine) {
+      flushQuote()
+      currentCode.push(line.slice(4))
     } else {
       flushQuote()
+      flushCode()
       if (line.trim() === "") {
         elements.push(<div key={`br-${i}`} className="h-3" />)
       } else {
@@ -85,6 +107,7 @@ function FormattedBody({ text }: { text: string | null }) {
     }
   }
   flushQuote()
+  flushCode()
 
   return <>{elements}</>
 }
