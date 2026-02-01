@@ -1,5 +1,7 @@
+"use client"
+
 import type { TreeItem } from "performant-array-to-tree"
-import type { Thread } from "~/models/thread.server"
+import type { Thread } from "@/models/thread"
 import { useState } from "react"
 
 export default function ThreadItem({

@@ -1,41 +1,22 @@
-import invariant from "tiny-invariant"
-import { json } from "@remix-run/node"
-import {
-  NavLink,
-  Link,
-  Outlet,
-  useLoaderData,
-  useLocation,
-} from "@remix-run/react"
-import { getListDetail } from "~/models/list.server"
-import type { LoaderFunction } from "@remix-run/node"
+"use client"
 
-import type { ListDetailDataSuccess } from "~/models/list.server"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import type { ListDetailDataSuccess } from "@/models/list"
 
-type LoaderData = {
-  data: NonNullable<ListDetailDataSuccess>
+type Message = NonNullable<ListDetailDataSuccess>["messages"][0]
+
+export default function MessageList({
+  list,
+  listId,
+  children,
+}: {
+  list: NonNullable<ListDetailDataSuccess>
   listId: string
-  threadId: string | undefined
-}
-type Message = LoaderData["data"]["messages"][0]
-
-export const loader: LoaderFunction = async ({ params }) => {
-  const { listId, threadId } = params
-
-  invariant(listId, `params.listId is required`)
-
-  const { data, error } = await getListDetail(listId!)
-
-  invariant(!error, `Error: ${error?.message}`)
-  invariant(data, `List not found: ${listId}`)
-
-  return json({ data, listId, threadId })
-}
-
-export default function List() {
-  const location = useLocation()
-  const { data: list, listId } = useLoaderData() as LoaderData
-  const threadSelected = location.pathname != `/lists/${listId}`
+  children: React.ReactNode
+}) {
+  const pathname = usePathname()
+  const threadSelected = pathname !== `/lists/${listId}`
 
   return (
     <div>
@@ -50,18 +31,10 @@ export default function List() {
               {listId}
             </p>
           </div>
-          {/* <div>
-          <Button
-            size="xs"
-            label="Markdown"
-            isActive={showMarkdown}
-            onClick={() => setShowMarkdown(!showMarkdown)}
-          />
-        </div> */}
         </div>
         <nav className="z-50 flex flex-col flex-grow border-r overflow-y-auto">
           <ul>
-            {list.messages.map((message) => (
+            {list.messages.map((message: Message) => (
               <MessageThread
                 key={message.id}
                 message={message}
@@ -72,37 +45,33 @@ export default function List() {
         </nav>
       </div>
       <div className="md:pl-80 flex flex-col flex-1 h-full">
-        <Outlet />
+        {children}
       </div>
     </div>
   )
 }
 
-const MessageThread = ({
+function MessageThread({
   message,
   href,
 }: {
   message: Message
   href: string
-}) => {
+}) {
   const from = message.from_addresses!
   // @ts-ignore
   const sender: { name?: string; address: string } = from[0]
   const timestamp = new Date(message.ts!).toLocaleDateString()
 
-  // PMC:
-  // For some reason Remix's built-in "isActive" deosn't work.
-  // I suspect it's because it's not decoding the URL?
-  const location = useLocation()
-  const isActive = decodeURI(location.pathname) === href
+  const pathname = usePathname()
+  const isActive = decodeURI(pathname) === href
   const activeClass = "text-red"
   const inactiveClass = "text-gray-500"
 
   return (
     <Link
-      to={href}
+      href={href}
       className={isActive ? activeClass : inactiveClass}
-      prefetch="intent"
     >
       <li
         key={message.id}
@@ -110,7 +79,7 @@ const MessageThread = ({
       >
         <div className="flex flex-row">
           <span className="font-bold flex-grow whitespace-nowrap text-ellipsis overflow-hidden">
-            {sender.name || sender.address || sender}
+            {sender.name || sender.address || String(sender)}
           </span>
           <span className="text-xs">{timestamp}</span>
         </div>

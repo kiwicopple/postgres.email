@@ -199,7 +199,7 @@ export interface Database {
         Returns: undefined;
       };
       postgres_fdw_get_connections: {
-        Args: { OUT: unknown; OUT: unknown };
+        Args: Record<string, unknown>;
         Returns: Record<string, unknown>[];
       };
       postgres_fdw_disconnect: {
@@ -213,4 +213,3 @@ export interface Database {
     };
   };
 }
-
