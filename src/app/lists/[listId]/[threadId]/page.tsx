@@ -8,7 +8,8 @@ export default async function ThreadPage({
 }: {
   params: { listId: string; threadId: string }
 }) {
-  const { listId, threadId } = params
+  const { listId, threadId: rawThreadId } = params
+  const threadId = decodeURIComponent(rawThreadId)
 
   const { data: thread, error } = await getThread(threadId)
 
