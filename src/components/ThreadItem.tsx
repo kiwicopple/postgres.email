@@ -138,11 +138,12 @@ export default function ThreadItem({
                   : "border-gray-900 px-6"
               }`}
             >
-              <span className="text-orange-500 font-bold pr-4">
-                {`${message.from_email}`}
-              </span>
-              <span className="text-gray-500" title={message.ts || ""}>
+              <span className="text-gray-500 pr-4">
                 {formatDate(message.ts)}
+              </span>
+              <br />
+              <span className="text-orange-500 font-bold">
+                {`${message.from_email}`}
               </span>
             </div>
           </summary>
