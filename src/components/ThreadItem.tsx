@@ -4,6 +4,81 @@ import type { TreeItem } from "performant-array-to-tree"
 import type { Thread } from "@/models/thread"
 import { useState } from "react"
 
+function formatDate(ts: string | null): string {
+  if (!ts) return ""
+  try {
+    const date = new Date(ts)
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    })
+  } catch {
+    return ts
+  }
+}
+
+function FormattedBody({ text }: { text: string | null }) {
+  if (!text) return null
+
+  const lines = text.split("\n")
+  const elements: React.ReactNode[] = []
+  let currentQuote: string[] = []
+  let quoteDepth = 0
+
+  const flushQuote = () => {
+    if (currentQuote.length > 0) {
+      elements.push(
+        <blockquote
+          key={`q-${elements.length}`}
+          className="border-l-2 border-gray-600 pl-3 my-2 text-gray-400 text-xs"
+        >
+          {currentQuote.map((line, i) => (
+            <span key={i}>
+              {line}
+              {i < currentQuote.length - 1 && <br />}
+            </span>
+          ))}
+        </blockquote>
+      )
+      currentQuote = []
+      quoteDepth = 0
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const quoteMatch = line.match(/^(>[\s>]*)/)
+
+    if (quoteMatch) {
+      const depth = (line.match(/>/g) || []).length
+      if (currentQuote.length > 0 && depth !== quoteDepth) {
+        flushQuote()
+      }
+      quoteDepth = depth
+      currentQuote.push(line.replace(/^[>\s]+/, ""))
+    } else {
+      flushQuote()
+      if (line.trim() === "") {
+        elements.push(<div key={`br-${i}`} className="h-3" />)
+      } else {
+        elements.push(
+          <span key={`l-${i}`}>
+            {line}
+            <br />
+          </span>
+        )
+      }
+    }
+  }
+  flushQuote()
+
+  return <>{elements}</>
+}
+
 export default function ThreadItem({
   tree,
   level,
@@ -67,20 +142,18 @@ export default function ThreadItem({
                 {`${message.from_email}`}
               </span>
               <span className="text-gray-500" title={message.ts || ""}>
-                {message.ts}
+                {formatDate(message.ts)}
               </span>
             </div>
           </summary>
           <div
-            className={`prose text-gray-200 text-sm ${
-              isRoot ? "pl-3" : "pl-6"
-            }`}
+            className={`text-gray-200 text-sm leading-relaxed ${
+              isRoot ? "pl-3 pr-3" : "pl-6 pr-3"
+            } py-3 font-mono`}
           >
-            {markdown ? message.body_text : message.body_text}
+            <FormattedBody text={message.body_text} />
           </div>
-          <div className="thread-footer py-4 border-b border-gray-700">
-            {/* Not yet used */}
-          </div>
+          <div className="thread-footer py-2 border-b border-gray-700" />
 
           {children && children.length > 0 && (
             <ul className={`replies ${isRoot ? "" : "ml-3"}`}>
