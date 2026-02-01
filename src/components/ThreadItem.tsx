@@ -93,6 +93,22 @@ function FormattedBody({ text }: { text: string | null }) {
       currentCode.push(line.slice(4))
     } else {
       flushQuote()
+      // If we're in a code block and hit a blank line, check if more code follows
+      if (line.trim() === "" && currentCode.length > 0) {
+        // Look ahead for another indented line
+        let hasMoreCode = false
+        for (let j = i + 1; j < lines.length; j++) {
+          if (lines[j].startsWith("    ") && lines[j].trim().length > 0) {
+            hasMoreCode = true
+            break
+          }
+          if (lines[j].trim() !== "") break
+        }
+        if (hasMoreCode) {
+          currentCode.push("")
+          continue
+        }
+      }
       flushCode()
       if (line.trim() === "") {
         elements.push(<div key={`br-${i}`} className="h-3" />)
