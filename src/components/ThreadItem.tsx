@@ -31,6 +31,42 @@ function getSenderName(message: Thread): string {
   return message.from_email || ""
 }
 
+// Turns URLs in a string into clickable <a> tags.
+// Handles bare URLs and angle-bracket-wrapped URLs like <https://...>
+const urlPattern = /<?(https?:\/\/[^\s<>]+)>?/g
+
+function linkify(text: string, key: string): React.ReactNode {
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  urlPattern.lastIndex = 0
+  while ((match = urlPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index))
+    }
+    const url = match[1]
+    parts.push(
+      <a
+        key={`${key}-${match.index}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 hover:underline break-all"
+      >
+        {url}
+      </a>
+    )
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex === 0) return text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex))
+  }
+  return <>{parts}</>
+}
+
 function FormattedBody({ text }: { text: string | null }) {
   if (!text) return null
 
@@ -49,7 +85,7 @@ function FormattedBody({ text }: { text: string | null }) {
         >
           {currentQuote.map((line, i) => (
             <span key={i}>
-              {line}
+              {linkify(line, `q-${elements.length}-${i}`)}
               {i < currentQuote.length - 1 && <br />}
             </span>
           ))}
@@ -119,7 +155,7 @@ function FormattedBody({ text }: { text: string | null }) {
       } else {
         elements.push(
           <span key={`l-${i}`}>
-            {line}
+            {linkify(line, `l-${i}`)}
             <br />
           </span>
         )
