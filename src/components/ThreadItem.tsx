@@ -21,6 +21,15 @@ function formatDate(ts: string | null): string {
   }
 }
 
+function getSenderName(message: Thread): string {
+  try {
+    const addrs = message.from_addresses as any
+    if (Array.isArray(addrs) && addrs[0]?.name) return addrs[0].name
+    if (addrs?.name) return addrs.name
+  } catch {}
+  return message.from_email || ""
+}
+
 function FormattedBody({ text }: { text: string | null }) {
   if (!text) return null
 
@@ -94,6 +103,7 @@ export default function ThreadItem({
 
   if (!message) return null
 
+  const senderName = getSenderName(message)
   const isRoot = level == 0
   const colors = isRoot
     ? "border-none"
@@ -138,13 +148,19 @@ export default function ThreadItem({
                   : "border-gray-900 px-6"
               }`}
             >
-              <span className="text-gray-500 pr-4">
+              <div className="truncate">
+                <span className="text-orange-500 font-bold">
+                  {senderName}
+                </span>
+                {senderName !== message.from_email && (
+                  <span className="text-gray-500 ml-2 text-xs">
+                    &lt;{message.from_email}&gt;
+                  </span>
+                )}
+              </div>
+              <div className="truncate text-gray-500 text-xs">
                 {formatDate(message.ts)}
-              </span>
-              <br />
-              <span className="text-orange-500 font-bold">
-                {`${message.from_email}`}
-              </span>
+              </div>
             </div>
           </summary>
           <div
