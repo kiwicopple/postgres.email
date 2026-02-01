@@ -2,6 +2,7 @@ import Link from "next/link"
 import clsx from "clsx"
 import { getLists } from "@/models/list"
 import QuickSearch from "@/components/QuickSearch"
+import MobileNav from "@/components/MobileNav"
 
 export const dynamic = "force-dynamic"
 
@@ -22,6 +23,7 @@ export default async function ListsLayout({
 
   return (
     <div className="h-full ">
+      <MobileNav lists={lists} />
       <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
         <div className="flex flex-col flex-grow border-r pt-5 overflow-y-auto">
           <div className="flex items-center flex-shrink-0 px-4 font-mono text-lg text-blue-400">
