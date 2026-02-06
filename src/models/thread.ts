@@ -9,8 +9,7 @@ export type Thread = Message & {
 }
 
 export type ThreadData = Awaited<ReturnType<typeof getThread>>
-// export type ThreadDataSuccess = ThreadData["data"]
-export type ThreadDataSuccess = Thread[] // PMC: Temporary fix for CLI
+export type ThreadDataSuccess = NonNullable<ThreadData["data"]>
 export type ThreadDataError = ThreadData["error"]
 
 export async function getThread(id: string) {

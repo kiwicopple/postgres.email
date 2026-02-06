@@ -12,7 +12,7 @@ export async function getLists() {
 }
 
 export type ListDetailData = Awaited<ReturnType<typeof getListDetail>>
-export type ListDetailDataSuccess = ListDetailData["data"] & {
+export type ListDetailDataSuccess = NonNullable<ListDetailData["data"]> & {
   messages: messages[]
 }
 export type ListDetailDataError = ListDetailData["error"]
