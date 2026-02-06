@@ -264,6 +264,365 @@ Start with the highest-traffic and most useful lists:
 
 ---
 
+## Testing Strategy
+
+### Test Framework
+
+Use **Vitest** (or Jest) for unit and integration tests. Vitest is faster and works well with modern Node.js.
+
+```bash
+npm install -D vitest
+```
+
+Add to `package.json`:
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  }
+}
+```
+
+### Directory Structure
+
+```
+scripts/
+├── __tests__/
+│   ├── download.test.js
+│   ├── parse.test.js
+│   ├── embed.test.js
+│   └── fixtures/
+│       ├── sample.mbox           # Small mbox with 5-10 messages
+│       ├── malformed.mbox        # Edge cases: missing headers, bad encoding
+│       ├── empty.mbox            # Empty file
+│       └── single-message.mbox   # One valid message
+├── download.js
+├── parse.js
+└── embed.js
+```
+
+### Test Fixtures
+
+Create small, representative mbox files for testing:
+
+**`fixtures/sample.mbox`** — A valid mbox with 5-10 real messages from pgsql-hackers covering:
+- Simple plain-text message
+- Message with replies (in-reply-to header)
+- Message with CC recipients
+- Message with attachments
+- Message with non-ASCII characters (UTF-8, ISO-8859-1)
+
+**`fixtures/malformed.mbox`** — Edge cases:
+- Message missing `Message-ID` header (should be skipped)
+- Message with malformed date
+- Message with invalid encoding declaration
+- Message with extremely long lines
+- Truncated message
+
+**`fixtures/empty.mbox`** — Empty file (0 bytes)
+
+**`fixtures/single-message.mbox`** — One complete, valid message for simple assertions
+
+### Unit Tests
+
+#### `download.test.js`
+
+```js
+import { describe, it, expect, vi } from 'vitest'
+import { buildMboxUrl, shouldDownload, parseListPage } from '../download.js'
+
+describe('buildMboxUrl', () => {
+  it('constructs correct URL for list and date', () => {
+    expect(buildMboxUrl('pgsql-hackers', 2024, 1))
+      .toBe('https://www.postgresql.org/list/pgsql-hackers/mbox/pgsql-hackers.202401')
+  })
+})
+
+describe('shouldDownload', () => {
+  it('returns true when local file does not exist', async () => {
+    expect(await shouldDownload('/nonexistent/file', 1000)).toBe(true)
+  })
+
+  it('returns false when local file size matches remote', async () => {
+    // Create temp file, mock HEAD request
+  })
+})
+
+describe('parseListPage', () => {
+  it('extracts mbox links from HTML', () => {
+    const html = '<a href="/list/pgsql-hackers/mbox/pgsql-hackers.202401">mbox</a>'
+    expect(parseListPage(html)).toContain('pgsql-hackers.202401')
+  })
+})
+```
+
+#### `parse.test.js`
+
+```js
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { parseMessage, extractMailboxId, parseMboxFile } from '../parse.js'
+import { readFileSync } from 'fs'
+import path from 'path'
+
+const fixturesDir = path.join(__dirname, 'fixtures')
+
+describe('extractMailboxId', () => {
+  it('extracts list name from filepath', () => {
+    expect(extractMailboxId('archives/pgsql-hackers/pgsql-hackers.202401'))
+      .toBe('pgsql-hackers')
+  })
+})
+
+describe('parseMessage', () => {
+  it('handles message with all fields', async () => {
+    const raw = readFileSync(path.join(fixturesDir, 'single-message.mbox'))
+    const msg = await parseMessage(raw)
+    expect(msg.id).toBeDefined()
+    expect(msg.subject).toBeDefined()
+    expect(msg.from_email).toBeDefined()
+  })
+
+  it('handles missing cc field gracefully', async () => {
+    // Message without CC header should have cc_addresses: null
+  })
+
+  it('handles non-UTF8 encoding', async () => {
+    // ISO-8859-1 message should be converted to UTF-8
+  })
+})
+
+describe('parseMboxFile', () => {
+  it('parses all messages from sample.mbox', async () => {
+    const messages = await parseMboxFile(path.join(fixturesDir, 'sample.mbox'))
+    expect(messages.length).toBeGreaterThan(0)
+  })
+
+  it('skips messages without message-id', async () => {
+    const messages = await parseMboxFile(path.join(fixturesDir, 'malformed.mbox'))
+    // Count should exclude messages missing Message-ID
+  })
+
+  it('returns empty array for empty file', async () => {
+    const messages = await parseMboxFile(path.join(fixturesDir, 'empty.mbox'))
+    expect(messages).toEqual([])
+  })
+})
+```
+
+#### `embed.test.js`
+
+```js
+import { describe, it, expect, vi } from 'vitest'
+import { cleanseText, generateEmbedding } from '../embed.js'
+
+describe('cleanseText', () => {
+  it('removes quoted lines', () => {
+    const input = 'Hello\n> quoted line\n> another quote\nWorld'
+    expect(cleanseText(input)).toBe('Hello World')
+  })
+
+  it('handles empty input', () => {
+    expect(cleanseText('')).toBe('')
+  })
+
+  it('handles text with only quotes', () => {
+    expect(cleanseText('> all quoted\n> lines')).toBe('')
+  })
+})
+
+describe('generateEmbedding', () => {
+  it('calls OpenAI API with cleansed text', async () => {
+    const mockOpenAI = {
+      embeddings: {
+        create: vi.fn().mockResolvedValue({
+          data: [{ embedding: new Array(1536).fill(0) }]
+        })
+      }
+    }
+    const embedding = await generateEmbedding('test text', mockOpenAI)
+    expect(embedding).toHaveLength(1536)
+    expect(mockOpenAI.embeddings.create).toHaveBeenCalledWith(
+      expect.objectContaining({ input: 'test text' })
+    )
+  })
+})
+```
+
+### Integration Tests
+
+Integration tests run against a real (local) database. Use Supabase local dev environment.
+
+```js
+// __tests__/integration/parse.integration.test.js
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { createClient } from '@supabase/supabase-js'
+import { parseMboxFile, insertMessages } from '../../parse.js'
+
+describe('parse integration', () => {
+  let supabase
+
+  beforeAll(async () => {
+    // Connect to local Supabase
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+    // Clean test data
+    await supabase.from('messages').delete().eq('mailbox_id', 'test-list')
+  })
+
+  afterAll(async () => {
+    // Cleanup
+    await supabase.from('messages').delete().eq('mailbox_id', 'test-list')
+  })
+
+  it('inserts parsed messages into database', async () => {
+    const messages = await parseMboxFile('__tests__/fixtures/sample.mbox')
+    await insertMessages(supabase, messages, 'test-list')
+
+    const { data, count } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact' })
+      .eq('mailbox_id', 'test-list')
+
+    expect(count).toBe(messages.length)
+  })
+
+  it('handles duplicate message-ids via upsert', async () => {
+    const messages = await parseMboxFile('__tests__/fixtures/single-message.mbox')
+
+    // Insert twice
+    await insertMessages(supabase, messages, 'test-list')
+    await insertMessages(supabase, messages, 'test-list')
+
+    const { count } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact' })
+      .eq('id', messages[0].id)
+
+    expect(count).toBe(1) // Not duplicated
+  })
+})
+```
+
+### Mocking External Dependencies
+
+#### HTTP Requests (download.js)
+
+Use `msw` (Mock Service Worker) or `nock` to mock HTTP responses:
+
+```js
+import { setupServer } from 'msw/node'
+import { http, HttpResponse } from 'msw'
+
+const server = setupServer(
+  http.get('https://www.postgresql.org/list/pgsql-hackers/mbox/*', () => {
+    return new HttpResponse(readFileSync('fixtures/sample.mbox'), {
+      headers: { 'Content-Length': '12345' }
+    })
+  }),
+  http.head('https://www.postgresql.org/list/pgsql-hackers/mbox/*', () => {
+    return new HttpResponse(null, {
+      headers: { 'Content-Length': '12345' }
+    })
+  })
+)
+
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+```
+
+#### OpenAI API (embed.js)
+
+Inject the OpenAI client as a dependency so it can be mocked:
+
+```js
+// embed.js
+export async function processMessages(supabase, openai = defaultOpenAI) {
+  // Use injected client
+}
+
+// In tests, pass a mock
+const mockOpenAI = { embeddings: { create: vi.fn() } }
+await processMessages(supabase, mockOpenAI)
+```
+
+#### Database (all scripts)
+
+For unit tests, mock Supabase client. For integration tests, use local Supabase.
+
+### Test Commands
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run --exclude '**/*.integration.test.js'",
+    "test:integration": "vitest run --include '**/*.integration.test.js'"
+  }
+}
+```
+
+### CI Pipeline
+
+Add GitHub Actions workflow:
+
+```yaml
+# .github/workflows/test.yml
+name: Test Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: supabase/postgres:15.1.0.117
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 54322:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run migrations
+        run: npx supabase db push --local
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          SUPABASE_URL: http://localhost:54321
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+```
+
+### Coverage Goals
+
+- **Unit tests**: 80%+ coverage on core parsing and transformation logic
+- **Integration tests**: Cover happy path for each script
+- **Edge cases**: Malformed input, network failures, database conflicts
+
+---
+
 ## Operational Notes
 
 - **Full backfill**: Some lists have archives going back to 1997. A full download of all lists will be many gigabytes. Start with recent years (2020+) and backfill older data incrementally.
