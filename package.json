@@ -7,11 +7,10 @@
     "lint": "next lint",
     "generate:types": "supabase gen types typescript --local > ./src/lib/database.types.ts",
     "download": "node -r dotenv/config scripts/download.js",
-    "download:prod": "node -r dotenv/config scripts/download.js dotenv_config_path=.env.prod",
     "parse": "node -r dotenv/config scripts/parse.js",
-    "parse:prod": "node -r dotenv/config scripts/parse.js dotenv_config_path=.env.prod",
+    "parse:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/parse.js",
     "embed": "node -r dotenv/config scripts/embed.js",
-    "embed:prod": "node -r dotenv/config scripts/embed.js dotenv_config_path=.env.prod",
+    "embed:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
