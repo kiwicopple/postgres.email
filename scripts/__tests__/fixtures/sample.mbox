@@ -1,0 +1,104 @@
+From announcements@postgresql.org Thu Jan  2 10:00:00 2026
+Message-ID: <test-announce-001@postgresql.org>
+Date: Thu, 2 Jan 2026 10:00:00 +0000
+From: PostgreSQL Announcements <announcements@postgresql.org>
+To: pgsql-announce@lists.postgresql.org
+Subject: PostgreSQL 17.2 Released!
+
+The PostgreSQL Global Development Group announces the release of PostgreSQL 17.2,
+the latest version of the world's most advanced open source database.
+
+This release includes important security fixes and bug fixes. All users are
+encouraged to upgrade as soon as possible.
+
+Key improvements in this release:
+- Improved query planner performance
+- Enhanced JSON support
+- Better partitioning capabilities
+
+For the full list of changes, see the release notes at:
+https://www.postgresql.org/docs/17/release-17-2.html
+
+Download: https://www.postgresql.org/download/
+
+From core@postgresql.org Thu Jan  9 14:30:00 2026
+Message-ID: <test-announce-002@postgresql.org>
+Date: Thu, 9 Jan 2026 14:30:00 +0000
+From: PostgreSQL Core Team <core@postgresql.org>
+To: pgsql-announce@lists.postgresql.org
+Subject: Call for Papers: PGConf 2026
+
+PGConf 2026 is now accepting talk proposals!
+
+We're looking for talks on a variety of topics:
+- PostgreSQL internals
+- Performance tuning
+- Extensions and tools
+- Case studies and real-world applications
+- DevOps and cloud deployments
+
+Submit your proposal by February 28, 2026 at:
+https://www.pgconf.org/2026/cfp
+
+We look forward to your submissions!
+
+From announcements@postgresql.org Mon Jan 13 09:15:00 2026
+Message-ID: <test-announce-003@postgresql.org>
+Date: Mon, 13 Jan 2026 09:15:00 +0000
+From: PostgreSQL Announcements <announcements@postgresql.org>
+To: pgsql-announce@lists.postgresql.org
+Cc: security@postgresql.org
+Subject: Security Update Advisory
+
+Dear PostgreSQL Community,
+
+We are releasing security updates for all supported versions of PostgreSQL.
+These updates address CVE-2026-0001 which affects all versions from 14 onwards.
+
+Affected versions: 14.x, 15.x, 16.x, 17.x
+Fixed versions: 14.15, 15.10, 16.6, 17.3
+
+We recommend all users update their installations immediately.
+
+For more details, see:
+https://www.postgresql.org/support/security/
+
+From events@postgresql.org Wed Jan 22 16:45:00 2026
+Message-ID: <test-announce-004@postgresql.org>
+Date: Wed, 22 Jan 2026 16:45:00 +0000
+From: PostgreSQL Events <events@postgresql.org>
+To: pgsql-announce@lists.postgresql.org
+In-Reply-To: <test-announce-002@postgresql.org>
+Subject: Re: Call for Papers: PGConf 2026
+
+A quick reminder that the CFP deadline for PGConf 2026 is approaching!
+
+We've received many great submissions so far, but there's still time to
+submit your proposal.
+
+Don't miss this opportunity to share your PostgreSQL expertise with the
+community!
+
+Deadline: February 28, 2026
+Submit at: https://www.pgconf.org/2026/cfp
+
+From announcements@postgresql.org Fri Jan 31 11:00:00 2026
+Message-ID: <test-announce-005@postgresql.org>
+Date: Fri, 31 Jan 2026 11:00:00 +0000
+From: PostgreSQL Announcements <announcements@postgresql.org>
+To: pgsql-announce@lists.postgresql.org
+Subject: PostgreSQL 18 Development Update
+
+The PostgreSQL development team is excited to share an update on
+PostgreSQL 18, currently in development.
+
+New features being worked on include:
+- Native support for vector operations (pgvector integration)
+- Improved logical replication performance
+- Enhanced parallel query capabilities
+- Better memory management for large workloads
+
+Alpha 1 is expected in March 2026.
+
+Stay tuned for more updates!
+

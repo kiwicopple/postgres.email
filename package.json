@@ -6,10 +6,15 @@
     "start": "next start",
     "lint": "next lint",
     "generate:types": "supabase gen types typescript --local > ./src/lib/database.types.ts",
+    "download": "node -r dotenv/config scripts/download.js",
+    "download:prod": "node -r dotenv/config scripts/download.js dotenv_config_path=.env.prod",
     "parse": "node -r dotenv/config scripts/parse.js",
     "parse:prod": "node -r dotenv/config scripts/parse.js dotenv_config_path=.env.prod",
     "embed": "node -r dotenv/config scripts/embed.js",
-    "embed:prod": "node -r dotenv/config scripts/embed.js dotenv_config_path=.env.prod"
+    "embed:prod": "node -r dotenv/config scripts/embed.js dotenv_config_path=.env.prod",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.1",
@@ -24,6 +29,7 @@
     "react-markdown": "^8.0.3"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.0",
     "@tailwindcss/forms": "^0.5.2",
     "@tailwindcss/typography": "^0.5.4",
     "@types/node": "^20.11.0",
@@ -38,7 +44,8 @@
     "pg": "^8.11.5",
     "postcss": "^8.4.16",
     "tailwindcss": "^3.1.8",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.0"
   },
   "engines": {
     "node": ">=18"
