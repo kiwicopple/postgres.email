@@ -24,3 +24,8 @@ details summary::-webkit-details-marker {
 .message-highlight {
   animation: highlightFade 2s ease-out forwards;
 }
+
+/* Add scroll margin to prevent messages from scrolling under sticky header */
+li[id^="message-"] {
+  scroll-margin-top: 190px;
+}
