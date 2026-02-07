@@ -36,9 +36,7 @@ export default async function ListsLayout({
         </div>
       </div>
       <div className="md:pl-64 flex flex-col flex-1 h-full">
-        <main>
-          {children}
-        </main>
+        <main>{children}</main>
       </div>
     </div>
   )
