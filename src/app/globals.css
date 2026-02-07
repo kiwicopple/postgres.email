@@ -10,3 +10,17 @@ body {
 details summary::-webkit-details-marker {
   display: none;
 }
+
+/* Message highlight animation when navigating via "Go to message" */
+@keyframes highlightFade {
+  0% {
+    background-color: rgba(59, 130, 246, 0.3); /* blue-500 with 30% opacity */
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.message-highlight {
+  animation: highlightFade 2s ease-out forwards;
+}

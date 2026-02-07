@@ -2,7 +2,7 @@
 
 import type { TreeItem } from "performant-array-to-tree"
 import type { Thread } from "@/types"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useFormatting } from "./FormattingProvider"
 import { formatDate, getSenderName, stripMessageIdBrackets } from "@/lib/formatters"
 import FormattedBody from "./FormattedBody"
@@ -22,9 +22,26 @@ export default function ThreadItem({
   markdown: boolean
 }) {
   const [showDetails, setShowDetails] = useState(true)
+  const [isHighlighted, setIsHighlighted] = useState(false)
   const { formatted } = useFormatting()
   const message: Thread = tree.data
   const children: { data: Thread; children: any }[] = tree.children
+
+  useEffect(() => {
+    // Check if this message is the target of navigation (hash matches)
+    const hash = window.location.hash
+    const targetId = hash.replace('#', '')
+    const messageElementId = `message-${message.id}`
+
+    if (targetId === messageElementId) {
+      setIsHighlighted(true)
+      // Scroll to the element
+      document.getElementById(messageElementId)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      })
+    }
+  }, [message.id])
 
   if (!message) return null
 
@@ -40,7 +57,7 @@ export default function ThreadItem({
       id={`message-${message.id}`}
       className={`w-full overflow-hidden border-l ${
         isRoot ? "" : "border-gray-900"
-      }`}
+      } ${isHighlighted ? 'message-highlight' : ''}`}
     >
       <div className={`w-full`}>
         <details className={`relative overflow-hidden `} open={showDetails}>
