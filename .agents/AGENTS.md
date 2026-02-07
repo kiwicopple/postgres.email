@@ -179,14 +179,69 @@ export type ListDetailDataSuccess = NonNullable<ListDetailData["data"]> & {
 
 ## Common Tasks
 
-### 1. Regenerating Database Types
+### 1. Making Database Schema Changes
+
+**IMPORTANT:** All database changes MUST be made through migrations, not by directly modifying the database.
+
+#### Create a new migration:
+```bash
+# Create a new migration file
+supabase migration new <descriptive_name>
+
+# Example:
+supabase migration new add_reply_count_to_messages
+```
+
+This creates a new file in `supabase/migrations/` with a timestamp prefix.
+
+#### Write your SQL:
+Edit the migration file and add your SQL:
+```sql
+-- supabase/migrations/20240101000000_add_reply_count_to_messages.sql
+ALTER TABLE messages ADD COLUMN reply_count INTEGER DEFAULT 0;
+
+CREATE INDEX messages_reply_count_idx ON messages(reply_count);
+```
+
+#### Apply migration locally:
+```bash
+# Apply to local database
+supabase db reset
+
+# Or just apply new migrations
+supabase migration up
+```
+
+#### Apply to production:
+```bash
+# Link to production project (one time)
+# Project ref is at the top of .env.prod
+supabase link --project-ref <project-ref>
+
+# Push migrations to production
+supabase db push
+```
+
+**Why migrations?**
+- Version controlled schema changes
+- Reproducible across environments
+- Safe rollback capability
+- Team coordination
+- Automatic deployment to production
+
+**Never do this:**
+❌ Direct SQL via Supabase Studio
+❌ Manual ALTER TABLE in production
+❌ Schema changes without migration files
+
+### 2. Regenerating Database Types
 
 After any migration:
 ```bash
 supabase gen types typescript --local > src/lib/database.types.ts
 ```
 
-### 2. Downloading Mailing List Archives
+### 3. Downloading Mailing List Archives
 
 ```bash
 # Download specific lists for date range
@@ -198,7 +253,7 @@ node scripts/download.js
 
 Archives are saved to `archives/[list-name]/[list-name].YYYYMM`
 
-### 3. Parsing and Ingesting Emails
+### 4. Parsing and Ingesting Emails
 
 ```bash
 # Parse to local database
@@ -208,7 +263,7 @@ node scripts/parse.js --lists pgsql-hackers --verbose
 NODE_ENV=production node -r dotenv/config scripts/parse.js dotenv_config_path=.env.prod --lists pgsql-hackers
 ```
 
-### 4. Generating Embeddings
+### 5. Generating Embeddings
 
 ```bash
 node scripts/embed.js --lists pgsql-hackers --limit 100
@@ -216,7 +271,7 @@ node scripts/embed.js --lists pgsql-hackers --limit 100
 
 Requires `OPENAI_API_KEY` in environment.
 
-### 5. Running Tests
+### 6. Running Tests
 
 ```bash
 # All tests
@@ -230,7 +285,7 @@ pnpm test tests/integration/site/
 pnpm test -- --coverage
 ```
 
-### 6. Deploying
+### 7. Deploying
 
 The app auto-deploys on push to `main` via Vercel. Manual steps:
 
