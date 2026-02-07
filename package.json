@@ -11,6 +11,7 @@
     "parse:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/parse.js",
     "embed": "node -r dotenv/config scripts/embed.js",
     "embed:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed.js",
+    "fetch-fixture": "node -r dotenv/config scripts/fetch-email-fixture.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

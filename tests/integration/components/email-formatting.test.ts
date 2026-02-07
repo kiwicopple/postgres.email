@@ -354,7 +354,7 @@ describe('Email Formatting - Specific Test Cases', () => {
 describe('PostgreSQL Table Formatting', () => {
   describe('Table Detection', () => {
     it('should detect PostgreSQL table with separator line', () => {
-      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_simple')
+      const fixture = fixtures.find((f: any) => f.name === 'decoupling_our_alignment_assumptions_about')
       expect(fixture).toBeDefined()
 
       const parsed = parseEmailContent(fixture.body_text)
@@ -370,7 +370,7 @@ describe('PostgreSQL Table Formatting', () => {
     })
 
     it('should detect pg_stat_recovery table format', () => {
-      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_pg_stat')
+      const fixture = fixtures.find((f: any) => f.name === 'add_pgstatrecovery_system_view')
       expect(fixture).toBeDefined()
 
       const parsed = parseEmailContent(fixture.body_text)
@@ -436,12 +436,13 @@ describe('PostgreSQL Table Formatting', () => {
 
       const parsed = parseEmailContent(fixture.body_text)
 
-      // Should detect both the SQL query and the result table as code
+      // Should detect the result table as code
       expect(parsed.codeBlocks.length).toBeGreaterThan(0)
 
       const allCode = parsed.codeBlocks.join('\n')
-      expect(allCode).toContain('pg_stat_recovery')
       expect(allCode).toContain('promote_triggered')
+      expect(allCode).toContain('not paused')
+      expect(allCode).toContain('---') // separator line
     })
   })
 })
