@@ -46,6 +46,14 @@ export function isTableLine(line: string): boolean {
   return false
 }
 
+/**
+ * Checks if a line is a psql row count line like "(1 row)" or "(5 rows)"
+ */
+export function isPsqlRowCount(line: string): boolean {
+  const trimmed = line.trim()
+  return /^\(\d+\s+rows?\)$/.test(trimmed)
+}
+
 export interface TableRow {
   cells: string[]
   diffType: 'added' | 'removed' | null

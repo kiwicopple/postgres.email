@@ -7,7 +7,8 @@ import {
   stripIndent,
   isFenceMarker,
   isSqlStatement,
-  isTableLine
+  isTableLine,
+  isPsqlRowCount
 } from "@/lib/code-detector"
 import { QuoteBlock, CodeBlock, TableBlock } from "./FormattedBody/"
 
@@ -107,12 +108,15 @@ export default function FormattedBody({ text }: FormattedBodyProps) {
       }
       quoteDepth = depth
       currentQuote.push(line.replace(/^[>\s]+/, ""))
-    } else if (isTableLine(line)) {
+    } else if (isTableLine(line) && !inSqlBlock) {
       flushQuote()
       flushCode()
-      inSqlBlock = false
       currentTable.push(line)
-    } else if (isIndented(line) || isSqlStatement(line) || (inSqlBlock && line.trim().length > 0)) {
+    } else if (
+      isIndented(line) ||
+      isSqlStatement(line) ||
+      (inSqlBlock && (line.trim().length > 0 || isTableLine(line) || isPsqlRowCount(line)))
+    ) {
       flushQuote()
       if (currentTable.length > 0) {
         flushTable(currentTable)
@@ -122,14 +126,19 @@ export default function FormattedBody({ text }: FormattedBodyProps) {
       if (isSqlStatement(line)) {
         inSqlBlock = true
       }
-      currentCode.push(isIndented(line) ? stripIndent(line) : line)
-      // End SQL block if line ends with semicolon
-      if (line.trim().endsWith(';')) {
-        inSqlBlock = false
+      // When in SQL block, include table lines and row counts as part of the code block
+      if (inSqlBlock && (isTableLine(line) || isPsqlRowCount(line))) {
+        currentCode.push(line)
+      } else {
+        currentCode.push(isIndented(line) ? stripIndent(line) : line)
       }
+      // Don't immediately end SQL block at semicolon - let it continue for psql output
     } else {
       flushQuote()
-      inSqlBlock = false
+      // End SQL block when we hit non-code content
+      if (inSqlBlock) {
+        inSqlBlock = false
+      }
       // If we're in a table and hit a blank line, check if more table follows
       if (line.trim() === "" && currentTable.length > 0) {
         let hasMoreTable = false
