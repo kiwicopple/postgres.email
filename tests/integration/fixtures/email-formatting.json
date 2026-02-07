@@ -202,6 +202,51 @@
       "name": "nested_formatting_protection",
       "description": "Prevent nested formatting issues",
       "body_text": "This has **bold with a link [inside](https://example.com)** text."
+    },
+    {
+      "name": "sql_select_statement",
+      "description": "Email with SELECT statement",
+      "body_text": "Here's the query:\n\nSELECT id, name, email\nFROM users\nWHERE active = true;\n\nLet me know if this works."
+    },
+    {
+      "name": "sql_insert_statement",
+      "description": "Email with INSERT statement",
+      "body_text": "Use this to add data:\n\nINSERT INTO products (name, price)\nVALUES ('Widget', 19.99);\n\nShould work fine."
+    },
+    {
+      "name": "sql_update_statement",
+      "description": "Email with UPDATE statement",
+      "body_text": "Try this update:\n\nUPDATE users\nSET status = 'active'\nWHERE id = 123;\n\nDone."
+    },
+    {
+      "name": "sql_delete_statement",
+      "description": "Email with DELETE statement",
+      "body_text": "Remove old records:\n\nDELETE FROM logs\nWHERE created_at < '2024-01-01';\n\nBe careful!"
+    },
+    {
+      "name": "sql_create_table",
+      "description": "Email with CREATE TABLE statement",
+      "body_text": "Here's the schema:\n\nCREATE TABLE orders (\n  id SERIAL PRIMARY KEY,\n  user_id INTEGER NOT NULL,\n  total DECIMAL(10, 2)\n);\n\nLooks good."
+    },
+    {
+      "name": "sql_with_cte",
+      "description": "Email with CTE (WITH clause)",
+      "body_text": "Complex query example:\n\nWITH active_users AS (\n  SELECT * FROM users WHERE active = true\n)\nSELECT * FROM active_users;\n\nThis uses a CTE."
+    },
+    {
+      "name": "sql_mixed_case_ignored",
+      "description": "Mixed case SQL should not be detected",
+      "body_text": "This sentence has select in it but not at the start.\n\nAlso, Select with capital S should not match.\n\nOnly uppercase keywords trigger detection."
+    },
+    {
+      "name": "sql_with_text",
+      "description": "SQL statement with surrounding text",
+      "body_text": "The issue can be fixed with:\n\nSELECT version();\n\nThis will show the PostgreSQL version."
+    },
+    {
+      "name": "sql_multiple_statements",
+      "description": "Multiple SQL statements",
+      "body_text": "Run these queries:\n\nSELECT COUNT(*) FROM users;\n\nSELECT COUNT(*) FROM orders;\n\nBoth should return counts."
     }
   ]
 }

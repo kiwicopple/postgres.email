@@ -110,6 +110,13 @@ function parseEmailContent(text: string | null): ParsedContent {
   // Detect markdown fenced code blocks (```language or just ```)
   const isFenceMarker = (l: string) => l.trim().startsWith('```')
 
+  // Detect SQL statements (uppercase keywords at start of line)
+  const sqlKeywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TRUNCATE', 'GRANT', 'REVOKE', 'WITH', 'EXPLAIN', 'ANALYZE', 'BEGIN', 'COMMIT', 'ROLLBACK', 'FROM', 'WHERE', 'ORDER', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'ON', 'UNION', 'INTERSECT', 'EXCEPT', 'SET', 'VALUES', 'INTO', 'AS', 'AND', 'OR']
+  const isSqlStatement = (l: string) => {
+    const trimmed = l.trim()
+    return sqlKeywords.some(keyword => trimmed.startsWith(keyword + ' ') || trimmed === keyword || trimmed.startsWith(keyword + '('))
+  }
+
   // Detect PostgreSQL-style table lines (with pipes and optional leading space)
   const isTableLine = (l: string) => {
     const trimmed = l.trim()
@@ -170,16 +177,20 @@ function parseEmailContent(text: string | null): ParsedContent {
     if (quoteMatch) {
       flushCode()
       currentQuote.push(line.replace(/^[>\s]+/, ''))
-    } else if (isIndented(line) || isTableLine(line)) {
+    } else if (isIndented(line) || isTableLine(line) || isSqlStatement(line)) {
       flushQuote()
-      // For table lines, keep original formatting (don't strip indent)
-      currentCode.push(isTableLine(line) ? line : stripIndent(line))
+      // For table lines and SQL, keep original formatting (don't strip indent)
+      if (isTableLine(line) || isSqlStatement(line)) {
+        currentCode.push(line)
+      } else {
+        currentCode.push(stripIndent(line))
+      }
     } else {
       flushQuote()
       if (line.trim() === '' && currentCode.length > 0) {
         let hasMoreCode = false
         for (let j = i + 1; j < lines.length; j++) {
-          if (isIndented(lines[j]) || isTableLine(lines[j])) {
+          if (isIndented(lines[j]) || isTableLine(lines[j]) || isSqlStatement(lines[j])) {
             hasMoreCode = true
             break
           }
@@ -640,6 +651,87 @@ describe('Email Formatting - Fixtures', () => {
       const italic = extractItalic(text)
       expect(bold).toEqual(['bold'])
       expect(italic).toEqual(['italic'])
+    })
+  })
+
+  describe('SQL Statement Detection', () => {
+    it('should detect SELECT statement as code block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_select_statement')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+      expect(parsed.codeBlocks[0]).toContain('SELECT')
+      expect(parsed.codeBlocks[0]).toContain('FROM users')
+    })
+
+    it('should detect INSERT statement as code block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_insert_statement')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('INSERT INTO products')
+      expect(parsed.codeBlocks[0]).toContain('VALUES')
+    })
+
+    it('should detect UPDATE statement as code block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_update_statement')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('UPDATE users')
+      expect(parsed.codeBlocks[0]).toContain('SET status')
+    })
+
+    it('should detect DELETE statement as code block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_delete_statement')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('DELETE FROM logs')
+    })
+
+    it('should detect CREATE TABLE statement as code block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_create_table')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('CREATE TABLE orders')
+      expect(parsed.codeBlocks[0]).toContain('SERIAL PRIMARY KEY')
+    })
+
+    it('should detect WITH (CTE) statement as code block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_with_cte')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // CTE with nested SELECT creates 2 blocks due to indentation
+      expect(parsed.codeBlocks.length).toBeGreaterThanOrEqual(1)
+      expect(parsed.codeBlocks.some(block => block.includes('WITH active_users'))).toBe(true)
+    })
+
+    it('should not detect mixed case SQL keywords', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_mixed_case_ignored')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should not detect any code blocks since keywords are not uppercase
+      expect(parsed.codeBlocks.length).toBe(0)
+    })
+
+    it('should detect SQL with surrounding text', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_with_text')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('SELECT version()')
+    })
+
+    it('should detect multiple SQL statements in one block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_multiple_statements')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Multiple SQL statements with blank lines between them are joined into one block
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('SELECT COUNT(*) FROM users')
+      expect(parsed.codeBlocks[0]).toContain('SELECT COUNT(*) FROM orders')
     })
   })
 })

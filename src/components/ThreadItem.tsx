@@ -289,6 +289,13 @@ function FormattedBody({ text }: { text: string | null }) {
   // Detect markdown fenced code blocks (```language or just ```)
   const isFenceMarker = (l: string) => l.trim().startsWith("```")
 
+  // Detect SQL statements (uppercase keywords at start of line)
+  const sqlKeywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TRUNCATE', 'GRANT', 'REVOKE', 'WITH', 'EXPLAIN', 'ANALYZE', 'BEGIN', 'COMMIT', 'ROLLBACK', 'FROM', 'WHERE', 'ORDER', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'ON', 'UNION', 'INTERSECT', 'EXCEPT', 'SET', 'VALUES', 'INTO', 'AS', 'AND', 'OR']
+  const isSqlStatement = (l: string) => {
+    const trimmed = l.trim()
+    return sqlKeywords.some(keyword => trimmed.startsWith(keyword + ' ') || trimmed === keyword || trimmed.startsWith(keyword + '('))
+  }
+
   // Detect PostgreSQL-style table lines (with pipes and optional leading space)
   const isTableLine = (l: string) => {
     const trimmed = l.trim()
@@ -344,13 +351,13 @@ function FormattedBody({ text }: { text: string | null }) {
       flushQuote()
       flushCode()
       currentTable.push(line)
-    } else if (isIndented(line)) {
+    } else if (isIndented(line) || isSqlStatement(line)) {
       flushQuote()
       if (currentTable.length > 0) {
         flushTable(currentTable)
         currentTable = []
       }
-      currentCode.push(stripIndent(line))
+      currentCode.push(isIndented(line) ? stripIndent(line) : line)
     } else {
       flushQuote()
       // If we're in a table and hit a blank line, check if more table follows
@@ -372,7 +379,7 @@ function FormattedBody({ text }: { text: string | null }) {
       if (line.trim() === "" && currentCode.length > 0) {
         let hasMoreCode = false
         for (let j = i + 1; j < lines.length; j++) {
-          if (isIndented(lines[j])) {
+          if (isIndented(lines[j]) || isSqlStatement(lines[j])) {
             hasMoreCode = true
             break
           }
