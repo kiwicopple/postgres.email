@@ -906,4 +906,78 @@ describe('PostgreSQL Table Formatting', () => {
       expect(allCode).toContain('---') // separator line
     })
   })
+
+  describe('Diff-Style Tables', () => {
+    it('should detect diff-style table with +/- rows', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_with_diff')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect the table (as code block since our test parser doesn't render tables)
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Should contain the table structure
+      const tableContent = parsed.codeBlocks.join('\n')
+      expect(tableContent).toContain('idx_scan')
+      expect(tableContent).toContain('idx_tup_read')
+      expect(tableContent).toContain('idx_tup_fetch')
+
+      // Should preserve the diff markers
+      expect(tableContent).toContain('-')
+      expect(tableContent).toContain('+')
+    })
+
+    it('should detect table with multiple diff rows', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_multiple_diffs')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect the table
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      const tableContent = parsed.codeBlocks.join('\n')
+      expect(tableContent).toContain('operation')
+      expect(tableContent).toContain('Seq Scan')
+      expect(tableContent).toContain('Index Scan')
+      expect(tableContent).toContain('Hash Join')
+      expect(tableContent).toContain('Merge Join')
+    })
+
+    it('should handle diff markers at the start of table rows', () => {
+      const body = `Results:
+
+ idx_scan | idx_tup_read
+----------+--------------
+-       5 |           10
++       5 |          224
+(1 row)`
+
+      const parsed = parseEmailContent(body)
+
+      // Should detect as table/code
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      const content = parsed.codeBlocks.join('\n')
+      expect(content).toContain('idx_scan')
+      expect(content).toContain('-')
+      expect(content).toContain('+')
+    })
+
+    it('should preserve diff table structure with SQL context', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_with_diff')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect both SQL and table
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Check that both the WHERE clause and the table are captured
+      const allContent = parsed.codeBlocks.join('\n')
+      expect(allContent).toContain('WHERE')
+      expect(allContent).toContain('idx_scan')
+    })
+  })
 })

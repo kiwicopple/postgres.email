@@ -247,6 +247,16 @@
       "name": "sql_multiple_statements",
       "description": "Multiple SQL statements",
       "body_text": "Run these queries:\n\nSELECT COUNT(*) FROM users;\n\nSELECT COUNT(*) FROM orders;\n\nBoth should return counts."
+    },
+    {
+      "name": "postgres_table_with_diff",
+      "description": "PostgreSQL table with diff-style +/- rows showing before/after states",
+      "body_text": "After running the index merge, here are the statistics:\n\nWHERE indexrelname = 'btree_merge_test_idx';\n\n idx_scan | idx_tup_read | idx_tup_fetch\n----------+--------------+---------------\n-       5 |           10 |            10\n+       5 |          224 |           224\n(1 row)\n\nThe + row shows the new values after merge."
+    },
+    {
+      "name": "postgres_table_multiple_diffs",
+      "description": "PostgreSQL table with multiple diff rows",
+      "body_text": "Comparison of query plans:\n\n operation | cost_before | cost_after | rows\n-----------+-------------+------------+------\n- Seq Scan |      100.00 |            |  1000\n+ Index Scan |         |      25.50 |  1000\n- Hash Join |      500.00 |            |  5000\n+ Merge Join |         |     150.00 |  5000\n(4 rows)\n\nClear improvement in costs."
     }
   ]
 }

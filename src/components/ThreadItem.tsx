@@ -230,13 +230,22 @@ function FormattedBody({ text }: { text: string | null }) {
       .map(h => h.trim())
       .filter(h => h.length > 0)
 
-    // Parse rows
-    const rows = rowLines.map(line =>
-      line
+    // Parse rows and detect diff markers
+    const rows = rowLines.map(line => {
+      const trimmed = line.trim()
+      const diffType = trimmed.startsWith('+') ? 'added' :
+                       trimmed.startsWith('-') ? 'removed' : null
+
+      // If line starts with +/-, remove it before parsing
+      const cleanLine = diffType ? trimmed.slice(1) : line
+
+      const cells = cleanLine
         .split("|")
         .map(cell => cell.trim())
         .filter(cell => cell.length > 0)
-    )
+
+      return { cells, diffType }
+    })
 
     return { headers, rows }
   }
@@ -250,11 +259,17 @@ function FormattedBody({ text }: { text: string | null }) {
       return
     }
 
+    // Check if this is a diff-style table
+    const hasDiffMarkers = table.rows.some(row => row.diffType !== null)
+
     elements.push(
       <div key={`t-${elements.length}`} className="my-2 overflow-x-auto">
         <table className="min-w-full border-collapse text-xs">
           <thead>
             <tr className="border-b border-gray-600">
+              {hasDiffMarkers && (
+                <th className="px-2 py-2 text-left font-semibold text-gray-300 bg-gray-800 w-8"></th>
+              )}
               {table.headers.map((header, i) => (
                 <th
                   key={i}
@@ -266,15 +281,33 @@ function FormattedBody({ text }: { text: string | null }) {
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row, i) => (
-              <tr key={i} className="border-b border-gray-700 hover:bg-gray-800/50">
-                {row.map((cell, j) => (
-                  <td key={j} className="px-3 py-2 text-gray-300">
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {table.rows.map((row, i) => {
+              const rowClass = row.diffType === 'added'
+                ? 'border-b border-gray-700 bg-green-900/20'
+                : row.diffType === 'removed'
+                ? 'border-b border-gray-700 bg-red-900/20'
+                : 'border-b border-gray-700 hover:bg-gray-800/50'
+
+              return (
+                <tr key={i} className={rowClass}>
+                  {hasDiffMarkers && (
+                    <td className="px-2 py-2 text-center font-mono font-bold w-8">
+                      {row.diffType === 'added' && (
+                        <span className="text-green-400">+</span>
+                      )}
+                      {row.diffType === 'removed' && (
+                        <span className="text-red-400">-</span>
+                      )}
+                    </td>
+                  )}
+                  {row.cells.map((cell, j) => (
+                    <td key={j} className="px-3 py-2 text-gray-300">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
