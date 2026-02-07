@@ -22,6 +22,7 @@ tests/
 │   │   └── message-highlight.test.ts  # Message highlighting
 │   ├── site/             # Web application tests
 │   │   ├── list-queries.test.ts       # Data fetching optimization
+│   │   ├── search.test.ts             # Search snippet formatting
 │   │   └── thread-navigation.test.ts  # Thread navigation
 │   └── fixtures/         # Shared test data
 │       ├── sample.mbox
@@ -101,6 +102,16 @@ Tests for the Next.js web application and data fetching patterns.
 - List view metadata fetching (excludes body_text)
 - Thread view complete data fetching
 - Performance optimization verification
+
+**search.test.ts** - Search Snippets (10 tests)
+- Null and empty input handling
+- Short text passthrough, long text truncation with ellipsis
+- Quoted line stripping, signature delimiter removal
+- Whitespace collapsing
+- Custom max length, realistic email body processing
+
+**thread-navigation.test.ts** - Thread Navigation (14 tests)
+- Thread navigation logic
 
 ## Running Tests
 

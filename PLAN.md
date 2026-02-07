@@ -256,25 +256,6 @@ Installed:
 
 ---
 
-## Phase 5: Full Pipeline Orchestration
-
-**Goal:** Single command to run the entire ingestion pipeline.
-
-### 5.1 Create `scripts/pipeline.js`
-
-Orchestrates: download → parse → embed. All steps incremental.
-
-```json
-"pipeline": "npm run download && npm run parse && npm run embed:vectors",
-"pipeline:prod": "npm run download -- --from $(date +%Y-%m) && npm run parse:prod && npm run embed:vectors:prod"
-```
-
-### 5.2 Cron / scheduled execution
-
-Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily or weekly.
-
----
-
 ## Scalability
 
 ### Email volume
@@ -311,8 +292,6 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 
 ## File Changes Summary
 
-### Completed ✅
-
 | File | Purpose |
 |---|---|
 | `scripts/lib/chunker.js` | Pure chunking logic — split, clean, overlap |
@@ -331,12 +310,6 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 | `tests/integration/site/search.test.ts` | 10 tests for getSnippet |
 | `package.json` | Added scripts, `@xenova/transformers`, updated `@supabase/supabase-js` |
 
-### Remaining
-
-| File | Purpose |
-|---|---|
-| `scripts/pipeline.js` | Orchestrate full ingestion pipeline |
-
 ---
 
 ## Testing Plan
@@ -347,10 +320,6 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 4. ✅ **Vector bucket setup** — bucket/index creation, idempotency, error handling — 11 tests
 5. ✅ **Search logic** — deduplication by message_id, ranking, score merging, edge cases — 12 tests
 6. ✅ **Search snippets** — getSnippet: quote stripping, signature removal, truncation, edge cases — 10 tests
-7. **Round-trip** — chunk → embed → query → verify original message appears
-8. **Search quality** — known queries, verify relevance
-
----
 
 ---
 

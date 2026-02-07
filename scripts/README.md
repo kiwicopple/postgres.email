@@ -77,10 +77,6 @@ Production:
 pnpm parse:prod
 ```
 
-### embed.js
-
-> **Removed.** Replaced by `embed-vectors.js` (see below).
-
 ### embed-vectors.js
 
 Chunks email bodies in memory and embeds them into a Supabase Vector Bucket using `gte-small` (via `@xenova/transformers`). Progress is tracked via `messages.embedded_at`.
