@@ -117,6 +117,16 @@ function FormattedBody({ text }: { text: string | null }) {
   const isIndented = (l: string) => indentPattern.test(l) && l.trim().length > 0
   const stripIndent = (l: string) => l.replace(/^(\t|    | {2,})/, "")
 
+  // Detect PostgreSQL-style table lines (with pipes and optional leading space)
+  const isTableLine = (l: string) => {
+    const trimmed = l.trim()
+    // Table separator line: ----+----+---- or ---------
+    if (/^[-+]+$/.test(trimmed) && trimmed.length > 3) return true
+    // Table content line: has pipes with content around them
+    if (trimmed.includes("|") && /\w.*\|.*\w/.test(trimmed)) return true
+    return false
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const quoteMatch = line.match(/^(>[\s>]*)/)
@@ -129,16 +139,17 @@ function FormattedBody({ text }: { text: string | null }) {
       }
       quoteDepth = depth
       currentQuote.push(line.replace(/^[>\s]+/, ""))
-    } else if (isIndented(line)) {
+    } else if (isIndented(line) || isTableLine(line)) {
       flushQuote()
-      currentCode.push(stripIndent(line))
+      // For table lines, keep original formatting (don't strip indent)
+      currentCode.push(isTableLine(line) ? line : stripIndent(line))
     } else {
       flushQuote()
       // If we're in a code block and hit a blank line, check if more code follows
       if (line.trim() === "" && currentCode.length > 0) {
         let hasMoreCode = false
         for (let j = i + 1; j < lines.length; j++) {
-          if (isIndented(lines[j])) {
+          if (isIndented(lines[j]) || isTableLine(lines[j])) {
             hasMoreCode = true
             break
           }

@@ -1,0 +1,112 @@
+{
+  "fixtures": [
+    {
+      "name": "codeblocks_and_links",
+      "id": "<CACJufxHu0sXO8791FDcNXp2bFnE89jyuGkJbLCQkhgWq6XuNLg@mail.gmail.com>",
+      "description": "Email with code blocks and links - testing that formatting is preserved",
+      "body_text": "hi.\nOn select cast(NULL::text as unknown);\n\nwe got:\nERROR:  failed to find conversion function from unknown to text\n\nfrom src/backend/parser/parse_coerce.c:\nthe code path is:\ncoerce_type:\n\n    case UNKNOWNOID:\n        /*\n         * We permit coercing an unknown constant to any non-array target type,\n         * so long as we can coerce the constant's presumed type to the target.\n         * This is useful for example with VALUES clauses.\n         */\n        if (node && IsA(node, Const) &&\n            !targetTypeId->typelem)\n        {\n            Const      *con = (Const *) node;\n\n            /* If target is a domain, apply constraints */\n            if (targetTypeId->typtype == TYPTYPE_DOMAIN)\n                con = coerce_to_domain((Node *) con, InvalidOid, -1,\n                                      targetTypeId->oid,\n                                      COERCE_IMPLICIT_CAST, -1,\n                                      false, false);\n            return (Node *) con;\n        }\n        break;\n\n  as you can see the code path only coerce type UNKNOWNOID to other types if it is a Const node.\n\nBut if I have a real table, with one column as text type.\nsee also https://www.postgresql.org/message-id/20070406175131.3FABF7FED85%40cvs.postgresql.org\n\nI also found similar discussion at:\nhttps://www.postgresql.org/message-id/87blddjojx.fsf%40news-spur.riddles.org.uk\n\n--\nRegards,\nJian He"
+    },
+    {
+      "name": "simple_text_with_url",
+      "description": "Simple email with plain text and a URL",
+      "body_text": "Hello everyone,\n\nCheck out this documentation:\nhttps://www.postgresql.org/docs/current/\n\nThanks!"
+    },
+    {
+      "name": "quoted_text",
+      "description": "Email with quoted reply text",
+      "body_text": "I agree with your assessment.\n\n> On Jan 15, 2026, someone wrote:\n> This is the original message that I'm replying to.\n> It has multiple lines.\n>\n> And a paragraph break.\n\nLet me know if you have any questions."
+    },
+    {
+      "name": "nested_quotes",
+      "description": "Email with multiple levels of quoting",
+      "body_text": "Here's my response:\n\n> I think this is a good idea.\n>\n>> But what about this concern?\n>>\n>> It seems important.\n>\n> I addressed that in my previous email.\n\nDoes this clarify things?"
+    },
+    {
+      "name": "code_block_indented",
+      "description": "Email with indented code block",
+      "body_text": "Here's the fix:\n\n    SELECT * FROM users\n    WHERE id = 1;\n\n    UPDATE users\n    SET name = 'John'\n    WHERE id = 1;\n\nThis should work now."
+    },
+    {
+      "name": "mixed_content",
+      "description": "Email with mixed content: code, quotes, and links",
+      "body_text": "Thanks for reporting this issue.\n\n> The query is failing with this error:\n> ERROR: division by zero\n\nI think the problem is in this section:\n\n    def calculate(x, y):\n        return x / y\n\nYou can find more info at:\nhttps://docs.python.org/3/library/exceptions.html\n\nLet me know if this helps!"
+    },
+    {
+      "name": "url_in_angle_brackets",
+      "description": "Email with URLs wrapped in angle brackets",
+      "body_text": "Please review the following:\n\n<https://github.com/postgres/postgres/pull/123>\n<https://www.example.com/docs>\n\nThank you!"
+    },
+    {
+      "name": "tab_indented_code",
+      "description": "Email with tab-indented code",
+      "body_text": "Here's the implementation:\n\n\tfunction test() {\n\t\tconsole.log('hello');\n\t\treturn true;\n\t}\n\nThis uses tab indentation."
+    },
+    {
+      "name": "four_space_indented_code",
+      "description": "Email with 4-space indented code",
+      "body_text": "Example code:\n\n    if (condition) {\n        doSomething();\n    }\n\nShould be formatted as code."
+    },
+    {
+      "name": "two_space_indented_code",
+      "description": "Email with 2-space indented code",
+      "body_text": "JavaScript example:\n\n  function add(a, b) {\n    return a + b;\n  }\n\nNote the 2-space indent."
+    },
+    {
+      "name": "code_block_with_blank_lines",
+      "description": "Code block with internal blank lines",
+      "body_text": "Here's the function:\n\n    def process():\n        step_one()\n\n        step_two()\n\n        return result\n\nThe blank lines should be preserved."
+    },
+    {
+      "name": "multiple_paragraphs",
+      "description": "Email with multiple paragraphs separated by blank lines",
+      "body_text": "This is the first paragraph.\n\nThis is the second paragraph.\n\nAnd here's a third paragraph with more content.\nThis line continues the third paragraph."
+    },
+    {
+      "name": "url_without_protocol",
+      "description": "Email with various URL formats",
+      "body_text": "Check these links:\nhttps://www.example.com/path\nhttp://old-site.com\n\nAlso mentioned: <https://github.com/repo>"
+    },
+    {
+      "name": "empty_body",
+      "description": "Email with null/empty body",
+      "body_text": null
+    },
+    {
+      "name": "only_whitespace",
+      "description": "Email with only whitespace",
+      "body_text": "   \n\n  \n\n"
+    },
+    {
+      "name": "sql_in_email",
+      "description": "Email containing SQL code",
+      "body_text": "The query that's causing issues:\n\n    SELECT u.id, u.name, COUNT(o.id) as order_count\n    FROM users u\n    LEFT JOIN orders o ON u.id = o.user_id\n    WHERE u.created_at > '2024-01-01'\n    GROUP BY u.id, u.name\n    HAVING COUNT(o.id) > 5;\n\nLet me know if you need help optimizing it."
+    },
+    {
+      "name": "patch_diff_format",
+      "description": "Email containing a patch/diff",
+      "body_text": "Here's the proposed change:\n\n    --- a/src/backend/parser/parse_coerce.c\n    +++ b/src/backend/parser/parse_coerce.c\n    @@ -123,6 +123,9 @@\n     case UNKNOWNOID:\n    +    if (targetTypeId == UNKNOWNOID)\n    +        return node;\n    +\n         /* existing code */\n\nWhat do you think?"
+    },
+    {
+      "name": "postgres_table_simple",
+      "id": "<1127261.1769649624@sss.pgh.pa.us>",
+      "description": "PostgreSQL table output format - simple table with pipes and dashes",
+      "body_text": "Here are the results from the query:\n\nselect typname, typlen, typalign from pg_type where typname like 'any%';\n\n    typname              | typlen | typalign\n -------------------------+--------+----------\n  any                     |      4 | i\n  anyarray                |     -1 | m\n  anycompatible           |      4 | i\n  anycompatiblearray      |     -1 | m\n  anycompatiblemultirange |     -1 | m\n  anycompatiblenonarray   |      4 | i\n  anycompatiblerange      |     -1 | m\n  anyelement              |      4 | i\n  anyenum                 |      4 | i\n  anymultirange           |     -1 | m\n  anynonarray             |      4 | i\n  anyrange                |     -1 | m\n (12 rows)\n\n(Previous to this patch, the 'm' entries were 'd'.)"
+    },
+    {
+      "name": "postgres_table_pg_stat",
+      "id": "<CABPTF7W+Nody-+P9y4PNk37-QWuLpfUrEonHuEhrX+Vx9Kq+Kw@mail.gmail.com>",
+      "description": "PostgreSQL pg_stat_recovery table output",
+      "body_text": "The new view shows recovery state information.\n\nHere's an example output:\n\n    SELECT * FROM pg_stat_recovery;\n\npromote_triggered | pause_state | wal_source | pg_size_pretty\n------------------+-------------+------------+----------------\n f                | not paused  | stream     | 0 bytes\n\nFeedbacks welcome."
+    },
+    {
+      "name": "postgres_table_in_quote",
+      "description": "PostgreSQL table inside a quoted section",
+      "body_text": "Thanks for the report!\n\n> I ran this query:\n>\n>     SELECT id, name, status\n>     FROM users\n>     WHERE active = true;\n>\n> And got this result:\n>\n>  id | name  | status\n> ----+-------+--------\n>   1 | Alice | active\n>   2 | Bob   | active\n>\n> Is this expected?\n\nYes, that's the correct output."
+    },
+    {
+      "name": "postgres_table_no_separator",
+      "description": "PostgreSQL-style output without separator line",
+      "body_text": "Quick results:\n\n column_name | data_type | is_nullable\n-------------+-----------+-------------\n id          | integer   | NO\n name        | text      | YES\n created_at  | timestamp | NO\n\nLooks good to me."
+    }
+  ]
+}

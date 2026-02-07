@@ -11,10 +11,13 @@ tests/
 │   │   ├── config.test.js      # Configuration parsing & URL building
 │   │   ├── embed.test.js       # Email embedding generation
 │   │   └── parse.test.js       # Mbox file parsing
+│   ├── components/       # React component tests
+│   │   └── email-formatting.test.ts  # Email formatting logic tests
 │   ├── site/             # Web application tests
 │   │   └── list-queries.test.ts  # Data fetching optimization tests
 │   └── fixtures/         # Shared test data
-│       └── sample.mbox
+│       ├── sample.mbox
+│       └── email-formatting.json  # Email formatting test cases
 └── README.md
 ```
 
@@ -40,6 +43,18 @@ Tests for CLI scripts used to download, parse, and process mailing list archives
 - Subject/from/to extraction
 - Reply threading (in_reply_to)
 - Body text extraction
+
+### Components Tests (`tests/integration/components/`)
+Tests for React component logic and email formatting.
+
+**email-formatting.test.ts** - Email Formatting & Parsing (51 tests)
+- Code block detection (tab, 2-space, 4-space indentation)
+- URL linkification (with/without angle brackets, http/https)
+- Quoted text parsing (single and nested quotes)
+- PostgreSQL table formatting (with/without separators, in quotes)
+- Mixed content handling (code + quotes + links)
+- Edge cases (null, whitespace, multiple paragraphs)
+- Real-world email regression tests
 
 ### Site Tests (`tests/integration/site/`)
 Tests for the Next.js web application and data fetching patterns.

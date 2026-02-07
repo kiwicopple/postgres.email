@@ -1,0 +1,447 @@
+import { describe, it, expect } from 'vitest'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const fixturesPath = path.join(__dirname, '../fixtures/email-formatting.json')
+
+// Import the fixtures
+const fixtures = JSON.parse(fs.readFileSync(fixturesPath, 'utf-8')).fixtures
+
+// Copy the formatting logic from ThreadItem.tsx for testing
+// This ensures we can test the logic independently of React rendering
+const urlPattern = /<?(https?:\/\/[^\s<>]+)>?/g
+
+function extractLinks(text: string): string[] {
+  const links: string[] = []
+  let match: RegExpExecArray | null
+
+  urlPattern.lastIndex = 0
+  while ((match = urlPattern.exec(text)) !== null) {
+    links.push(match[1])
+  }
+
+  return links
+}
+
+interface ParsedContent {
+  quotes: string[]
+  codeBlocks: string[]
+  links: string[]
+  hasContent: boolean
+}
+
+function parseEmailContent(text: string | null): ParsedContent {
+  if (!text) {
+    return { quotes: [], codeBlocks: [], links: [], hasContent: false }
+  }
+
+  const lines = text.split('\n')
+  const quotes: string[] = []
+  const codeBlocks: string[] = []
+  const links: string[] = []
+
+  let currentQuote: string[] = []
+  let currentCode: string[] = []
+
+  const indentPattern = /^(\t|    | {2,}(?=\S))/
+  const isIndented = (l: string) => indentPattern.test(l) && l.trim().length > 0
+  const stripIndent = (l: string) => l.replace(/^(\t|    | {2,})/, '')
+
+  // Detect PostgreSQL-style table lines (with pipes and optional leading space)
+  const isTableLine = (l: string) => {
+    const trimmed = l.trim()
+    // Table separator line: ----+----+---- or ---------
+    if (/^[-+]+$/.test(trimmed) && trimmed.length > 3) return true
+    // Table content line: has pipes with content around them
+    if (trimmed.includes('|') && /\w.*\|.*\w/.test(trimmed)) return true
+    return false
+  }
+
+  const flushQuote = () => {
+    if (currentQuote.length > 0) {
+      quotes.push(currentQuote.join('\n'))
+      currentQuote = []
+    }
+  }
+
+  const flushCode = () => {
+    if (currentCode.length > 0) {
+      codeBlocks.push(currentCode.join('\n'))
+      currentCode = []
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const quoteMatch = line.match(/^(>[\s>]*)/)
+
+    // Extract links
+    const lineLinks = extractLinks(line)
+    links.push(...lineLinks)
+
+    if (quoteMatch) {
+      flushCode()
+      currentQuote.push(line.replace(/^[>\s]+/, ''))
+    } else if (isIndented(line) || isTableLine(line)) {
+      flushQuote()
+      // For table lines, keep original formatting (don't strip indent)
+      currentCode.push(isTableLine(line) ? line : stripIndent(line))
+    } else {
+      flushQuote()
+      if (line.trim() === '' && currentCode.length > 0) {
+        let hasMoreCode = false
+        for (let j = i + 1; j < lines.length; j++) {
+          if (isIndented(lines[j]) || isTableLine(lines[j])) {
+            hasMoreCode = true
+            break
+          }
+          if (lines[j].trim() !== '') break
+        }
+        if (hasMoreCode) {
+          currentCode.push('')
+          continue
+        }
+      }
+      flushCode()
+    }
+  }
+
+  flushQuote()
+  flushCode()
+
+  return {
+    quotes,
+    codeBlocks,
+    links,
+    hasContent: text.trim().length > 0
+  }
+}
+
+describe('Email Formatting - Fixtures', () => {
+  describe('Regression Tests', () => {
+    it('should load all fixtures', () => {
+      expect(fixtures).toBeDefined()
+      expect(fixtures.length).toBeGreaterThan(0)
+    })
+
+    fixtures.forEach((fixture: any) => {
+      describe(`Fixture: ${fixture.name}`, () => {
+        const parsed = parseEmailContent(fixture.body_text)
+
+        it(`should parse without errors`, () => {
+          expect(parsed).toBeDefined()
+          expect(parsed).toHaveProperty('quotes')
+          expect(parsed).toHaveProperty('codeBlocks')
+          expect(parsed).toHaveProperty('links')
+        })
+      })
+    })
+  })
+
+  describe('Code Block Detection', () => {
+    it('should detect code block in codeblocks_and_links fixture', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'codeblocks_and_links')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+      expect(parsed.codeBlocks[0]).toContain('case UNKNOWNOID:')
+    })
+
+    it('should detect tab-indented code', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'tab_indented_code')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('function test()')
+    })
+
+    it('should detect 4-space indented code', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'four_space_indented_code')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('if (condition)')
+    })
+
+    it('should detect 2-space indented code', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'two_space_indented_code')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('function add')
+    })
+
+    it('should preserve blank lines within code blocks', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'code_block_with_blank_lines')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('step_one()')
+      expect(parsed.codeBlocks[0]).toContain('step_two()')
+      // Should have blank lines preserved
+      expect(parsed.codeBlocks[0].split('\n').length).toBeGreaterThan(3)
+    })
+
+    it('should detect SQL code blocks', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_in_email')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('SELECT')
+      expect(parsed.codeBlocks[0]).toContain('FROM users')
+    })
+
+    it('should detect patch/diff format', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'patch_diff_format')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('--- a/')
+      expect(parsed.codeBlocks[0]).toContain('+++ b/')
+    })
+  })
+
+  describe('Link Detection', () => {
+    it('should detect links in codeblocks_and_links fixture', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'codeblocks_and_links')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBeGreaterThan(0)
+      expect(parsed.links).toContain('https://www.postgresql.org/message-id/20070406175131.3FABF7FED85%40cvs.postgresql.org')
+    })
+
+    it('should detect simple URLs', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'simple_text_with_url')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBe(1)
+      expect(parsed.links[0]).toBe('https://www.postgresql.org/docs/current/')
+    })
+
+    it('should detect URLs in angle brackets', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'url_in_angle_brackets')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBe(2)
+      expect(parsed.links).toContain('https://github.com/postgres/postgres/pull/123')
+      expect(parsed.links).toContain('https://www.example.com/docs')
+    })
+
+    it('should detect both http and https URLs', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'url_without_protocol')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBe(3)
+      expect(parsed.links.some(l => l.startsWith('https://'))).toBe(true)
+      expect(parsed.links.some(l => l.startsWith('http://'))).toBe(true)
+    })
+  })
+
+  describe('Quote Detection', () => {
+    it('should detect quoted text', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'quoted_text')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.quotes.length).toBeGreaterThan(0)
+      expect(parsed.quotes[0]).toContain('original message')
+    })
+
+    it('should handle nested quotes', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'nested_quotes')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.quotes.length).toBeGreaterThan(0)
+      // Check that nested quote content is captured
+      const allQuoteText = parsed.quotes.join(' ')
+      expect(allQuoteText).toContain('good idea')
+      expect(allQuoteText).toContain('this concern')
+    })
+  })
+
+  describe('Mixed Content', () => {
+    it('should handle emails with quotes, code, and links', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'mixed_content')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.quotes.length).toBeGreaterThan(0)
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+      expect(parsed.links.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Edge Cases', () => {
+    it('should handle null body text', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'empty_body')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.hasContent).toBe(false)
+      expect(parsed.quotes.length).toBe(0)
+      expect(parsed.codeBlocks.length).toBe(0)
+      expect(parsed.links.length).toBe(0)
+    })
+
+    it('should handle whitespace-only content', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'only_whitespace')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.hasContent).toBe(false)
+    })
+
+    it('should handle multiple paragraphs', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'multiple_paragraphs')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.hasContent).toBe(true)
+      // Should not be detected as code or quotes
+      expect(parsed.codeBlocks.length).toBe(0)
+      expect(parsed.quotes.length).toBe(0)
+    })
+  })
+
+  describe('URL Pattern Matching', () => {
+    it('should extract URL without angle brackets', () => {
+      const links = extractLinks('Check out https://example.com for more info')
+      expect(links).toEqual(['https://example.com'])
+    })
+
+    it('should extract URL with angle brackets', () => {
+      const links = extractLinks('Link: <https://example.com>')
+      expect(links).toEqual(['https://example.com'])
+    })
+
+    it('should extract multiple URLs', () => {
+      const links = extractLinks('Visit https://site1.com and https://site2.com')
+      expect(links).toEqual(['https://site1.com', 'https://site2.com'])
+    })
+
+    it('should handle URLs with paths and query strings', () => {
+      const links = extractLinks('https://example.com/path?query=123&foo=bar')
+      expect(links).toEqual(['https://example.com/path?query=123&foo=bar'])
+    })
+
+    it('should handle URLs with URL-encoded characters', () => {
+      const text = 'https://www.postgresql.org/message-id/20070406175131.3FABF7FED85%40cvs.postgresql.org'
+      const links = extractLinks(text)
+      expect(links.length).toBe(1)
+      expect(links[0]).toContain('%40')
+    })
+  })
+})
+
+describe('Email Formatting - Specific Test Cases', () => {
+  it('should correctly parse the real-world pgsql-hackers email', () => {
+    const fixture = fixtures.find((f: any) => f.id === '<CACJufxHu0sXO8791FDcNXp2bFnE89jyuGkJbLCQkhgWq6XuNLg@mail.gmail.com>')
+    expect(fixture).toBeDefined()
+
+    const parsed = parseEmailContent(fixture.body_text)
+
+    // Should detect the error message as quoted or code
+    expect(parsed.hasContent).toBe(true)
+
+    // Should detect the C code block
+    expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+    const codeContent = parsed.codeBlocks.join(' ')
+    expect(codeContent).toContain('case UNKNOWNOID:')
+
+    // Should detect the URLs
+    expect(parsed.links.length).toBeGreaterThan(0)
+    expect(parsed.links.some(l => l.includes('postgresql.org'))).toBe(true)
+  })
+})
+
+describe('PostgreSQL Table Formatting', () => {
+  describe('Table Detection', () => {
+    it('should detect PostgreSQL table with separator line', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_simple')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Table should be detected as a code block to preserve formatting
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Should contain table content
+      const tableContent = parsed.codeBlocks.join('\n')
+      expect(tableContent).toContain('typname')
+      expect(tableContent).toContain('typlen')
+      expect(tableContent).toContain('typalign')
+    })
+
+    it('should detect pg_stat_recovery table format', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_pg_stat')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Table should be detected as a code block
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      const tableContent = parsed.codeBlocks.join('\n')
+      expect(tableContent).toContain('promote_triggered')
+      expect(tableContent).toContain('pause_state')
+    })
+
+    it('should handle tables inside quotes', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_in_quote')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect quotes with code/table content preserved
+      expect(parsed.quotes.length).toBeGreaterThan(0)
+
+      // The quoted content should include both the SQL and the table
+      const quoteText = parsed.quotes.join('\n')
+      expect(quoteText).toContain('SELECT')
+      expect(quoteText).toContain('Alice')
+    })
+
+    it('should handle table without separator line', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_no_separator')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should still detect as code block
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      const tableContent = parsed.codeBlocks.join('\n')
+      expect(tableContent).toContain('column_name')
+      expect(tableContent).toContain('data_type')
+    })
+  })
+
+  describe('Real-World Regression Tests', () => {
+    it('should correctly format email <1127261.1769649624@sss.pgh.pa.us>', () => {
+      const fixture = fixtures.find((f: any) => f.id === '<1127261.1769649624@sss.pgh.pa.us>')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect the table as code
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Table should be complete (not split)
+      const allCode = parsed.codeBlocks.join('\n')
+      expect(allCode).toContain('typname')
+      expect(allCode).toContain('anyarray')
+      expect(allCode).toContain('anyrange')
+    })
+
+    it('should correctly format email <CABPTF7W+Nody-+P9y4PNk37-QWuLpfUrEonHuEhrX+Vx9Kq+Kw@mail.gmail.com>', () => {
+      const fixture = fixtures.find((f: any) => f.id === '<CABPTF7W+Nody-+P9y4PNk37-QWuLpfUrEonHuEhrX+Vx9Kq+Kw@mail.gmail.com>')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect both the SQL query and the result table as code
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      const allCode = parsed.codeBlocks.join('\n')
+      expect(allCode).toContain('pg_stat_recovery')
+      expect(allCode).toContain('promote_triggered')
+    })
+  })
+})
