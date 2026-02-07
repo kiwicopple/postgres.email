@@ -2,6 +2,7 @@ import { getLists } from "@/models/list"
 import QuickSearch from "@/components/QuickSearch"
 import MobileNav from "@/components/MobileNav"
 import ListNav from "@/components/ListNav"
+import GoToMessage from "@/components/GoToMessage"
 import { FormattingProvider } from "@/components/FormattingProvider"
 import FormattingToggle from "@/components/FormattingToggle"
 import { REVALIDATE_INTERVAL } from "@/lib/constants"
@@ -30,6 +31,9 @@ export default async function ListsLayout({
             </div>
             <div className="mt-5 flex-grow flex flex-col">
               <ListNav lists={lists} />
+            </div>
+            <div className="border-t border-gray-800 px-2 py-3">
+              <GoToMessage />
             </div>
             <div className="border-t border-gray-800 px-2 py-3">
               <QuickSearch />

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "@/models/thread"
 import ThreadView from "./ThreadView"
@@ -19,7 +20,7 @@ export default async function ThreadPage({
   const { data: thread, error } = await getThread(threadId)
 
   if (error) throw new Error(error.message)
-  if (!thread || thread.length === 0) throw new Error(`Thread not found: ${threadId}`)
+  if (!thread || thread.length === 0) notFound()
 
   const tree = arrayToTree(thread, { parentId: "in_reply_to" })[0]
 
