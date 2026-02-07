@@ -107,6 +107,31 @@
       "name": "postgres_table_no_separator",
       "description": "PostgreSQL-style output without separator line",
       "body_text": "Quick results:\n\n column_name | data_type | is_nullable\n-------------+-----------+-------------\n id          | integer   | NO\n name        | text      | YES\n created_at  | timestamp | NO\n\nLooks good to me."
+    },
+    {
+      "name": "fenced_code_block",
+      "description": "Email with markdown fenced code block",
+      "body_text": "Here's the implementation:\n\n```javascript\nfunction calculateTotal(items) {\n  return items.reduce((sum, item) => sum + item.price, 0);\n}\n```\n\nLet me know if this works!"
+    },
+    {
+      "name": "fenced_code_block_no_language",
+      "description": "Fenced code block without language specifier",
+      "body_text": "Quick fix:\n\n```\nSELECT * FROM users\nWHERE active = true;\n```\n\nThis should resolve the issue."
+    },
+    {
+      "name": "multiple_fenced_code_blocks",
+      "description": "Email with multiple fenced code blocks",
+      "body_text": "First, update the schema:\n\n```sql\nCREATE TABLE products (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL\n);\n```\n\nThen use this query:\n\n```sql\nSELECT * FROM products\nORDER BY name;\n```\n\nDone!"
+    },
+    {
+      "name": "mixed_fenced_and_indented",
+      "description": "Email with both fenced and indented code blocks",
+      "body_text": "You can use either format:\n\n```python\ndef hello():\n    print('fenced')\n```\n\nOr the indented style:\n\n    def hello():\n        print('indented')\n\nBoth should work."
+    },
+    {
+      "name": "fenced_with_markdown_links",
+      "description": "Fenced code block in email with markdown links",
+      "body_text": "Check the docs at https://example.com/docs\n\nHere's the code:\n\n```bash\npig repo set\npig install pg18\npig install pg_duckdb --v 18\n```\n\nSee also [Documentation](https://pgext.cloud/pig/)"
     }
   ]
 }

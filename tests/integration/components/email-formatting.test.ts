@@ -44,10 +44,14 @@ function parseEmailContent(text: string | null): ParsedContent {
 
   let currentQuote: string[] = []
   let currentCode: string[] = []
+  let inFencedCode = false
 
   const indentPattern = /^(\t|    | {2,}(?=\S))/
   const isIndented = (l: string) => indentPattern.test(l) && l.trim().length > 0
   const stripIndent = (l: string) => l.replace(/^(\t|    | {2,})/, '')
+
+  // Detect markdown fenced code blocks (```language or just ```)
+  const isFenceMarker = (l: string) => l.trim().startsWith('```')
 
   // Detect PostgreSQL-style table lines (with pipes and optional leading space)
   const isTableLine = (l: string) => {
@@ -80,6 +84,27 @@ function parseEmailContent(text: string | null): ParsedContent {
     // Extract links
     const lineLinks = extractLinks(line)
     links.push(...lineLinks)
+
+    // Handle fenced code blocks
+    if (isFenceMarker(line)) {
+      if (!inFencedCode) {
+        // Starting a fenced code block
+        flushQuote()
+        flushCode()
+        inFencedCode = true
+      } else {
+        // Ending a fenced code block
+        inFencedCode = false
+        flushCode()
+      }
+      continue
+    }
+
+    // If we're inside a fenced code block, collect all lines
+    if (inFencedCode) {
+      currentCode.push(line)
+      continue
+    }
 
     if (quoteMatch) {
       flushCode()
@@ -201,6 +226,42 @@ describe('Email Formatting - Fixtures', () => {
       expect(parsed.codeBlocks[0]).toContain('--- a/')
       expect(parsed.codeBlocks[0]).toContain('+++ b/')
     })
+
+    it('should detect fenced code blocks with language', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'fenced_code_block')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('function calculateTotal')
+      expect(parsed.codeBlocks[0]).toContain('reduce')
+    })
+
+    it('should detect fenced code blocks without language', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'fenced_code_block_no_language')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('SELECT * FROM users')
+      expect(parsed.codeBlocks[0]).toContain('WHERE active = true')
+    })
+
+    it('should detect multiple fenced code blocks', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'multiple_fenced_code_blocks')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(2)
+      expect(parsed.codeBlocks[0]).toContain('CREATE TABLE products')
+      expect(parsed.codeBlocks[1]).toContain('SELECT * FROM products')
+    })
+
+    it('should handle both fenced and indented code blocks', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'mixed_fenced_and_indented')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.codeBlocks.length).toBe(2)
+      expect(parsed.codeBlocks[0]).toContain('fenced')
+      expect(parsed.codeBlocks[1]).toContain('indented')
+    })
   })
 
   describe('Link Detection', () => {
@@ -236,6 +297,16 @@ describe('Email Formatting - Fixtures', () => {
       expect(parsed.links.length).toBe(3)
       expect(parsed.links.some(l => l.startsWith('https://'))).toBe(true)
       expect(parsed.links.some(l => l.startsWith('http://'))).toBe(true)
+    })
+
+    it('should detect links in emails with fenced code blocks', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'fenced_with_markdown_links')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBeGreaterThan(0)
+      expect(parsed.links.some(l => l.includes('example.com/docs'))).toBe(true)
+      expect(parsed.codeBlocks.length).toBe(1)
+      expect(parsed.codeBlocks[0]).toContain('pig repo set')
     })
   })
 

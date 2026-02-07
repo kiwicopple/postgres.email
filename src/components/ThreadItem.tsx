@@ -76,6 +76,7 @@ function FormattedBody({ text }: { text: string | null }) {
   let quoteDepth = 0
   let currentCode: string[] = []
   let currentTable: string[] = []
+  let inFencedCode = false
 
   const flushQuote = () => {
     if (currentQuote.length > 0) {
@@ -188,6 +189,9 @@ function FormattedBody({ text }: { text: string | null }) {
   const isIndented = (l: string) => indentPattern.test(l) && l.trim().length > 0
   const stripIndent = (l: string) => l.replace(/^(\t|    | {2,})/, "")
 
+  // Detect markdown fenced code blocks (```language or just ```)
+  const isFenceMarker = (l: string) => l.trim().startsWith("```")
+
   // Detect PostgreSQL-style table lines (with pipes and optional leading space)
   const isTableLine = (l: string) => {
     const trimmed = l.trim()
@@ -201,6 +205,31 @@ function FormattedBody({ text }: { text: string | null }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const quoteMatch = line.match(/^(>[\s>]*)/)
+
+    // Handle fenced code blocks
+    if (isFenceMarker(line)) {
+      if (!inFencedCode) {
+        // Starting a fenced code block
+        flushQuote()
+        if (currentTable.length > 0) {
+          flushTable(currentTable)
+          currentTable = []
+        }
+        flushCode()
+        inFencedCode = true
+      } else {
+        // Ending a fenced code block
+        inFencedCode = false
+        flushCode()
+      }
+      continue
+    }
+
+    // If we're inside a fenced code block, collect all lines
+    if (inFencedCode) {
+      currentCode.push(line)
+      continue
+    }
 
     if (quoteMatch) {
       if (currentTable.length > 0) {
