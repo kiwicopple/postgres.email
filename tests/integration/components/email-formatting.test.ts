@@ -13,6 +13,9 @@ const fixtures = JSON.parse(fs.readFileSync(fixturesPath, 'utf-8')).fixtures
 // This ensures we can test the logic independently of React rendering
 const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
 const urlPattern = /<?(https?:\/\/[^\s<>]+)>?/g
+const boldPattern = /(\*\*|__)([^\*_]+)\1/g
+// Italic: single * or _ not preceded/followed by another * or _
+const italicPattern = /(?<!\*)\*(?!\*)([^\*]+?)\*(?!\*)|(?<!_)_(?!_)([^_]+?)_(?!_)/g
 
 function extractLinks(text: string): string[] {
   const links: string[] = []
@@ -51,22 +54,50 @@ function extractLinks(text: string): string[] {
   return links
 }
 
+function extractBold(text: string): string[] {
+  const bold: string[] = []
+  boldPattern.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = boldPattern.exec(text)) !== null) {
+    bold.push(match[2])
+  }
+  return bold
+}
+
+function extractItalic(text: string): string[] {
+  const italic: string[] = []
+  italicPattern.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = italicPattern.exec(text)) !== null) {
+    // The pattern has two alternations, so text is in group 1 or 2
+    const italicText = match[1] || match[2]
+    if (italicText) {
+      italic.push(italicText)
+    }
+  }
+  return italic
+}
+
 interface ParsedContent {
   quotes: string[]
   codeBlocks: string[]
   links: string[]
+  bold: string[]
+  italic: string[]
   hasContent: boolean
 }
 
 function parseEmailContent(text: string | null): ParsedContent {
   if (!text) {
-    return { quotes: [], codeBlocks: [], links: [], hasContent: false }
+    return { quotes: [], codeBlocks: [], links: [], bold: [], italic: [], hasContent: false }
   }
 
   const lines = text.split('\n')
   const quotes: string[] = []
   const codeBlocks: string[] = []
   const links: string[] = []
+  const bold: string[] = []
+  const italic: string[] = []
 
   let currentQuote: string[] = []
   let currentCode: string[] = []
@@ -107,9 +138,13 @@ function parseEmailContent(text: string | null): ParsedContent {
     const line = lines[i]
     const quoteMatch = line.match(/^(>[\s>]*)/)
 
-    // Extract links
+    // Extract links, bold, and italic
     const lineLinks = extractLinks(line)
     links.push(...lineLinks)
+    const lineBold = extractBold(line)
+    bold.push(...lineBold)
+    const lineItalic = extractItalic(line)
+    italic.push(...lineItalic)
 
     // Handle fenced code blocks
     if (isFenceMarker(line)) {
@@ -166,6 +201,8 @@ function parseEmailContent(text: string | null): ParsedContent {
     quotes,
     codeBlocks,
     links,
+    bold,
+    italic,
     hasContent: text.trim().length > 0
   }
 }
@@ -381,6 +418,80 @@ describe('Email Formatting - Fixtures', () => {
     })
   })
 
+  describe('Markdown Text Formatting', () => {
+    it('should detect bold text with double asterisks', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'bold_double_asterisk')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.bold.length).toBe(1)
+      expect(parsed.bold[0]).toBe('PostgreSQL 13-18')
+    })
+
+    it('should detect bold text with double underscores', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'bold_double_underscore')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.bold.length).toBe(1)
+      expect(parsed.bold[0]).toBe('important note')
+    })
+
+    it('should detect italic text with single asterisk', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'italic_single_asterisk')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.italic.length).toBe(1)
+      expect(parsed.italic[0]).toBe('review carefully')
+    })
+
+    it('should detect italic text with single underscore', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'italic_single_underscore')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.italic.length).toBe(1)
+      expect(parsed.italic[0]).toBe('emphasis')
+    })
+
+    it('should detect both bold and italic in same text', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'bold_and_italic')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.bold.length).toBe(1)
+      expect(parsed.bold[0]).toBe('bold text')
+      expect(parsed.italic.length).toBe(1)
+      expect(parsed.italic[0]).toBe('italic text')
+    })
+
+    it('should detect multiple bold sections', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'multiple_bold')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.bold.length).toBe(2)
+      expect(parsed.bold).toContain('First')
+      expect(parsed.bold).toContain('second')
+    })
+
+    it('should detect bold, italic, and links together', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'bold_italic_links')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.bold.length).toBeGreaterThan(0)
+      expect(parsed.bold[0]).toBe('PostgreSQL 13-18')
+      expect(parsed.italic.length).toBeGreaterThan(0)
+      expect(parsed.italic[0]).toBe('more details')
+      expect(parsed.links.length).toBeGreaterThan(0)
+      expect(parsed.links[0]).toBe('https://example.com')
+    })
+
+    it('should detect bold text in quoted sections', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'bold_in_quoted_text')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.quotes.length).toBeGreaterThan(0)
+      expect(parsed.bold.length).toBeGreaterThan(0)
+      expect(parsed.bold[0]).toBe('critical issue')
+    })
+  })
+
   describe('Quote Detection', () => {
     it('should detect quoted text', () => {
       const fixture = fixtures.find((f: any) => f.name === 'quoted_text')
@@ -489,6 +600,46 @@ describe('Email Formatting - Fixtures', () => {
       const links = extractLinks('[link](https://example.com)')
       expect(links.length).toBe(1)
       expect(links[0]).toBe('https://example.com')
+    })
+  })
+
+  describe('Bold and Italic Pattern Matching', () => {
+    it('should extract bold text with double asterisks', () => {
+      const bold = extractBold('This is **bold** text')
+      expect(bold).toEqual(['bold'])
+    })
+
+    it('should extract bold text with double underscores', () => {
+      const bold = extractBold('This is __bold__ text')
+      expect(bold).toEqual(['bold'])
+    })
+
+    it('should extract multiple bold sections', () => {
+      const bold = extractBold('**First** and **second** bold')
+      expect(bold).toEqual(['First', 'second'])
+    })
+
+    it('should extract italic text with single asterisk', () => {
+      const italic = extractItalic('This is *italic* text')
+      expect(italic).toEqual(['italic'])
+    })
+
+    it('should extract italic text with single underscore', () => {
+      const italic = extractItalic('This is _italic_ text')
+      expect(italic).toEqual(['italic'])
+    })
+
+    it('should not extract bold as italic', () => {
+      const italic = extractItalic('This is **bold** not italic')
+      expect(italic.length).toBe(0)
+    })
+
+    it('should extract both bold and italic from same text', () => {
+      const text = '**bold** and *italic* together'
+      const bold = extractBold(text)
+      const italic = extractItalic(text)
+      expect(bold).toEqual(['bold'])
+      expect(italic).toEqual(['italic'])
     })
   })
 })

@@ -31,17 +31,29 @@ function getSenderName(message: Thread): string {
   return message.from_email || ""
 }
 
-// Turns URLs in a string into clickable <a> tags.
-// Handles markdown links [text](url), bare URLs, and angle-bracket-wrapped URLs like <https://...>
+// Handles inline markdown formatting: links, bold, italic, and URLs
+// Markdown links: [text](url), Bold: **text** or __text__, Italic: *text* or _text_
+// URLs: bare https://... or <https://...>
 const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
 const urlPattern = /<?(https?:\/\/[^\s<>]+)>?/g
+const boldPattern = /(\*\*|__)([^\*_]+)\1/g
+// Italic: single * or _ not preceded/followed by another * or _
+const italicPattern = /(?<!\*)\*(?!\*)([^\*]+?)\*(?!\*)|(?<!_)_(?!_)([^_]+?)_(?!_)/g
+
+type FormatMatch = {
+  index: number
+  length: number
+  type: 'link' | 'bold' | 'italic' | 'url'
+  url?: string
+  text?: string
+}
 
 function linkify(text: string, key: string): React.ReactNode {
   const parts: React.ReactNode[] = []
   let lastIndex = 0
 
-  // First, find all markdown links and bare URLs in order
-  const matches: Array<{ index: number; length: number; url: string; text?: string }> = []
+  // Find all markdown formatting in order
+  const matches: FormatMatch[] = []
 
   // Find markdown links [text](url)
   markdownLinkPattern.lastIndex = 0
@@ -50,6 +62,7 @@ function linkify(text: string, key: string): React.ReactNode {
     matches.push({
       index: match.index,
       length: match[0].length,
+      type: 'link',
       url: match[2],
       text: match[1]
     })
@@ -58,15 +71,50 @@ function linkify(text: string, key: string): React.ReactNode {
   // Find bare URLs and angle-bracket URLs, but skip those inside markdown links
   urlPattern.lastIndex = 0
   while ((match = urlPattern.exec(text)) !== null) {
-    // Check if this URL is part of a markdown link
-    const isInMarkdownLink = matches.some(m =>
+    const isInsideOther = matches.some(m =>
       match!.index >= m.index && match!.index < m.index + m.length
     )
-    if (!isInMarkdownLink) {
+    if (!isInsideOther) {
       matches.push({
         index: match.index,
         length: match[0].length,
+        type: 'url',
         url: match[1]
+      })
+    }
+  }
+
+  // Find bold text **text** or __text__
+  boldPattern.lastIndex = 0
+  while ((match = boldPattern.exec(text)) !== null) {
+    const isInsideOther = matches.some(m =>
+      match!.index >= m.index && match!.index < m.index + m.length
+    )
+    if (!isInsideOther) {
+      matches.push({
+        index: match.index,
+        length: match[0].length,
+        type: 'bold',
+        text: match[2]
+      })
+    }
+  }
+
+  // Find italic text *text* or _text_ (but not bold)
+  italicPattern.lastIndex = 0
+  while ((match = italicPattern.exec(text)) !== null) {
+    // Skip if this italic match is inside another match (bold, link, etc)
+    const isInsideOther = matches.some(m =>
+      match!.index >= m.index && match!.index < m.index + m.length
+    )
+    if (!isInsideOther) {
+      // The pattern has two alternations, so text is in group 1 or 2
+      const italicText = match[1] || match[2]
+      matches.push({
+        index: match.index,
+        length: match[0].length,
+        type: 'italic',
+        text: italicText
       })
     }
   }
@@ -79,17 +127,33 @@ function linkify(text: string, key: string): React.ReactNode {
     if (m.index > lastIndex) {
       parts.push(text.slice(lastIndex, m.index))
     }
-    parts.push(
-      <a
-        key={`${key}-${m.index}`}
-        href={m.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-400 hover:underline break-all"
-      >
-        {m.text || m.url}
-      </a>
-    )
+
+    if (m.type === 'link' || m.type === 'url') {
+      parts.push(
+        <a
+          key={`${key}-${m.index}`}
+          href={m.url!}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:underline break-all"
+        >
+          {m.text || m.url}
+        </a>
+      )
+    } else if (m.type === 'bold') {
+      parts.push(
+        <strong key={`${key}-${m.index}`} className="font-bold">
+          {m.text}
+        </strong>
+      )
+    } else if (m.type === 'italic') {
+      parts.push(
+        <em key={`${key}-${m.index}`} className="italic">
+          {m.text}
+        </em>
+      )
+    }
+
     lastIndex = m.index + m.length
   })
 

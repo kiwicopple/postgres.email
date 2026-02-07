@@ -157,6 +157,51 @@
       "name": "markdown_link_in_quoted_text",
       "description": "Markdown link inside quoted text",
       "body_text": "I agree with your point.\n\n> Please review the [patch](https://lists.postgresql.org/message-id/123)\n> before merging.\n\nLooks good to me!"
+    },
+    {
+      "name": "bold_double_asterisk",
+      "description": "Email with bold text using **",
+      "body_text": "This is **PostgreSQL 13-18** with support for extensions."
+    },
+    {
+      "name": "bold_double_underscore",
+      "description": "Email with bold text using __",
+      "body_text": "The __important note__ is at the bottom."
+    },
+    {
+      "name": "italic_single_asterisk",
+      "description": "Email with italic text using *",
+      "body_text": "Please *review carefully* before merging."
+    },
+    {
+      "name": "italic_single_underscore",
+      "description": "Email with italic text using _",
+      "body_text": "The _emphasis_ is on testing."
+    },
+    {
+      "name": "bold_and_italic",
+      "description": "Email with both bold and italic",
+      "body_text": "This is **bold text** and this is *italic text* in the same sentence."
+    },
+    {
+      "name": "multiple_bold",
+      "description": "Email with multiple bold sections",
+      "body_text": "**First** section and **second** section are both important."
+    },
+    {
+      "name": "bold_italic_links",
+      "description": "Email with bold, italic, and links mixed",
+      "body_text": "Check **PostgreSQL 13-18** at [our website](https://example.com) for *more details*."
+    },
+    {
+      "name": "bold_in_quoted_text",
+      "description": "Bold text inside quoted text",
+      "body_text": "I agree.\n\n> The **critical issue** needs to be addressed.\n> Please review.\n\nThanks!"
+    },
+    {
+      "name": "nested_formatting_protection",
+      "description": "Prevent nested formatting issues",
+      "body_text": "This has **bold with a link [inside](https://example.com)** text."
     }
   ]
 }
