@@ -132,6 +132,31 @@
       "name": "fenced_with_markdown_links",
       "description": "Fenced code block in email with markdown links",
       "body_text": "Check the docs at https://example.com/docs\n\nHere's the code:\n\n```bash\npig repo set\npig install pg18\npig install pg_duckdb --v 18\n```\n\nSee also [Documentation](https://pgext.cloud/pig/)"
+    },
+    {
+      "name": "markdown_link_simple",
+      "description": "Email with simple markdown link",
+      "body_text": "Check out the [PostgreSQL documentation](https://www.postgresql.org/docs/) for more information."
+    },
+    {
+      "name": "markdown_link_multiple",
+      "description": "Email with multiple markdown links",
+      "body_text": "See the [API docs](https://api.example.com) and [user guide](https://guide.example.com) for details."
+    },
+    {
+      "name": "markdown_mixed_with_bare_urls",
+      "description": "Email with both markdown links and bare URLs",
+      "body_text": "Visit [our website](https://example.com) or https://blog.example.com for updates.\n\nYou can also check <https://docs.example.com>."
+    },
+    {
+      "name": "markdown_link_with_special_chars",
+      "description": "Markdown link with special characters in URL",
+      "body_text": "See the [commit message](https://github.com/org/repo/commit/abc123?param=value&other=test) for details."
+    },
+    {
+      "name": "markdown_link_in_quoted_text",
+      "description": "Markdown link inside quoted text",
+      "body_text": "I agree with your point.\n\n> Please review the [patch](https://lists.postgresql.org/message-id/123)\n> before merging.\n\nLooks good to me!"
     }
   ]
 }

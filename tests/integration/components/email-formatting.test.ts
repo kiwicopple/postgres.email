@@ -11,16 +11,42 @@ const fixtures = JSON.parse(fs.readFileSync(fixturesPath, 'utf-8')).fixtures
 
 // Copy the formatting logic from ThreadItem.tsx for testing
 // This ensures we can test the logic independently of React rendering
+const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
 const urlPattern = /<?(https?:\/\/[^\s<>]+)>?/g
 
 function extractLinks(text: string): string[] {
   const links: string[] = []
-  let match: RegExpExecArray | null
+  const matches: Array<{ index: number; length: number; url: string }> = []
 
+  // Find markdown links [text](url)
+  markdownLinkPattern.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = markdownLinkPattern.exec(text)) !== null) {
+    matches.push({
+      index: match.index,
+      length: match[0].length,
+      url: match[2]
+    })
+  }
+
+  // Find bare URLs and angle-bracket URLs, but skip those inside markdown links
   urlPattern.lastIndex = 0
   while ((match = urlPattern.exec(text)) !== null) {
-    links.push(match[1])
+    const isInMarkdownLink = matches.some(m =>
+      match!.index >= m.index && match!.index < m.index + m.length
+    )
+    if (!isInMarkdownLink) {
+      matches.push({
+        index: match.index,
+        length: match[0].length,
+        url: match[1]
+      })
+    }
   }
+
+  // Extract URLs in order
+  matches.sort((a, b) => a.index - b.index)
+  matches.forEach(m => links.push(m.url))
 
   return links
 }
@@ -308,6 +334,51 @@ describe('Email Formatting - Fixtures', () => {
       expect(parsed.codeBlocks.length).toBe(1)
       expect(parsed.codeBlocks[0]).toContain('pig repo set')
     })
+
+    it('should detect simple markdown links', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'markdown_link_simple')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBe(1)
+      expect(parsed.links[0]).toBe('https://www.postgresql.org/docs/')
+    })
+
+    it('should detect multiple markdown links', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'markdown_link_multiple')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBe(2)
+      expect(parsed.links).toContain('https://api.example.com')
+      expect(parsed.links).toContain('https://guide.example.com')
+    })
+
+    it('should detect both markdown links and bare URLs', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'markdown_mixed_with_bare_urls')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBe(3)
+      expect(parsed.links).toContain('https://example.com')
+      expect(parsed.links).toContain('https://blog.example.com')
+      expect(parsed.links).toContain('https://docs.example.com')
+    })
+
+    it('should handle markdown links with special characters', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'markdown_link_with_special_chars')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.links.length).toBe(1)
+      expect(parsed.links[0]).toContain('github.com/org/repo/commit/abc123')
+      expect(parsed.links[0]).toContain('param=value')
+    })
+
+    it('should detect markdown links in quoted text', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'markdown_link_in_quoted_text')
+      const parsed = parseEmailContent(fixture.body_text)
+
+      expect(parsed.quotes.length).toBeGreaterThan(0)
+      expect(parsed.links.length).toBe(1)
+      expect(parsed.links[0]).toContain('lists.postgresql.org')
+    })
   })
 
   describe('Quote Detection', () => {
@@ -397,6 +468,27 @@ describe('Email Formatting - Fixtures', () => {
       const links = extractLinks(text)
       expect(links.length).toBe(1)
       expect(links[0]).toContain('%40')
+    })
+
+    it('should extract markdown links', () => {
+      const links = extractLinks('Check the [docs](https://example.com) for info')
+      expect(links).toEqual(['https://example.com'])
+    })
+
+    it('should extract multiple markdown links', () => {
+      const links = extractLinks('See [site1](https://site1.com) and [site2](https://site2.com)')
+      expect(links).toEqual(['https://site1.com', 'https://site2.com'])
+    })
+
+    it('should extract both markdown and bare URLs in order', () => {
+      const links = extractLinks('Visit [docs](https://docs.com) or https://blog.com')
+      expect(links).toEqual(['https://docs.com', 'https://blog.com'])
+    })
+
+    it('should not duplicate URLs in markdown links', () => {
+      const links = extractLinks('[link](https://example.com)')
+      expect(links.length).toBe(1)
+      expect(links[0]).toBe('https://example.com')
     })
   })
 })

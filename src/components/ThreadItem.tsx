@@ -32,33 +32,66 @@ function getSenderName(message: Thread): string {
 }
 
 // Turns URLs in a string into clickable <a> tags.
-// Handles bare URLs and angle-bracket-wrapped URLs like <https://...>
+// Handles markdown links [text](url), bare URLs, and angle-bracket-wrapped URLs like <https://...>
+const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g
 const urlPattern = /<?(https?:\/\/[^\s<>]+)>?/g
 
 function linkify(text: string, key: string): React.ReactNode {
   const parts: React.ReactNode[] = []
   let lastIndex = 0
-  let match: RegExpExecArray | null
 
+  // First, find all markdown links and bare URLs in order
+  const matches: Array<{ index: number; length: number; url: string; text?: string }> = []
+
+  // Find markdown links [text](url)
+  markdownLinkPattern.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = markdownLinkPattern.exec(text)) !== null) {
+    matches.push({
+      index: match.index,
+      length: match[0].length,
+      url: match[2],
+      text: match[1]
+    })
+  }
+
+  // Find bare URLs and angle-bracket URLs, but skip those inside markdown links
   urlPattern.lastIndex = 0
   while ((match = urlPattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index))
+    // Check if this URL is part of a markdown link
+    const isInMarkdownLink = matches.some(m =>
+      match!.index >= m.index && match!.index < m.index + m.length
+    )
+    if (!isInMarkdownLink) {
+      matches.push({
+        index: match.index,
+        length: match[0].length,
+        url: match[1]
+      })
     }
-    const url = match[1]
+  }
+
+  // Sort matches by index
+  matches.sort((a, b) => a.index - b.index)
+
+  // Build the output
+  matches.forEach((m) => {
+    if (m.index > lastIndex) {
+      parts.push(text.slice(lastIndex, m.index))
+    }
     parts.push(
       <a
-        key={`${key}-${match.index}`}
-        href={url}
+        key={`${key}-${m.index}`}
+        href={m.url}
         target="_blank"
         rel="noopener noreferrer"
         className="text-blue-400 hover:underline break-all"
       >
-        {url}
+        {m.text || m.url}
       </a>
     )
-    lastIndex = match.index + match[0].length
-  }
+    lastIndex = m.index + m.length
+  })
 
   if (lastIndex === 0) return text
   if (lastIndex < text.length) {
