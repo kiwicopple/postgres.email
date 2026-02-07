@@ -16,6 +16,8 @@ node_modules
 
 fdw.sql
 archives/**/*
+!archives/sample/
+!archives/sample/**
 
 # Supabase
 .branches
