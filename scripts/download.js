@@ -122,7 +122,7 @@ async function downloadFile(url, destPath, maxRetries = 3) {
       }
 
       fs.writeFileSync(destPath, response.body)
-      logger.info(`Downloaded: ${path.basename(destPath)} (${response.body.length} bytes)`)
+      console.log(`     ✅ Downloaded ${formatBytes(response.body.length)}`)
       return true
     } catch (err) {
       logger.warn(`Attempt ${attempt}/${maxRetries} failed for ${url}: ${err.message}`)
@@ -135,6 +135,19 @@ async function downloadFile(url, destPath, maxRetries = 3) {
 
   logger.error(`Failed to download after ${maxRetries} attempts: ${url}`)
   return false
+}
+
+/**
+ * Format bytes to human-readable size
+ * @param {number} bytes
+ * @returns {string}
+ */
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
 }
 
 /**
@@ -152,20 +165,23 @@ async function downloadList(list, months) {
   let skipped = 0
   let failed = 0
 
-  for (const { year, month } of months) {
+  for (let i = 0; i < months.length; i++) {
+    const { year, month } = months[i]
     const url = buildMboxUrl(list, year, month)
     const monthStr = String(month).padStart(2, '0')
     const filename = `${list}.${year}${monthStr}`
     const destPath = path.join(listDir, filename)
 
+    const progress = `[${i + 1}/${months.length}]`
     const { shouldDownload: needsDownload } = await shouldDownload(destPath, url)
 
     if (!needsDownload) {
-      logger.debug(`Skipping (already exists): ${filename}`)
+      console.log(`  ${progress} ⏭️  Skipping ${filename} (already exists)`)
       skipped++
       continue
     }
 
+    console.log(`  ${progress} ⬇️  Downloading ${filename}...`)
     const success = await downloadFile(url, destPath)
     if (success) {
       downloaded++
@@ -227,18 +243,23 @@ async function main() {
   let totalSkipped = 0
   let totalFailed = 0
 
-  for (const list of lists) {
-    logger.info(`\nProcessing list: ${list}`)
+  console.log(`\n${'='.repeat(60)}`)
+  for (let i = 0; i < lists.length; i++) {
+    const list = lists[i]
+    console.log(`\n📧 Processing list ${i + 1}/${lists.length}: ${list}`)
     const result = await downloadList(list, months)
+    console.log(`   Downloaded: ${result.downloaded} | Skipped: ${result.skipped} | Failed: ${result.failed}`)
     totalDownloaded += result.downloaded
     totalSkipped += result.skipped
     totalFailed += result.failed
   }
 
-  logger.info(`\nDownload complete:`)
-  logger.info(`  Downloaded: ${totalDownloaded}`)
-  logger.info(`  Skipped: ${totalSkipped}`)
-  logger.info(`  Failed: ${totalFailed}`)
+  console.log(`\n${'='.repeat(60)}`)
+  console.log(`✨ Download complete!`)
+  console.log(`   Downloaded: ${totalDownloaded}`)
+  console.log(`   Skipped: ${totalSkipped}`)
+  console.log(`   Failed: ${totalFailed}`)
+  console.log(`${'='.repeat(60)}`)
 
   if (totalFailed > 0) {
     process.exit(1)

@@ -143,47 +143,54 @@ async function main() {
   const lists = options.lists || DEFAULT_LISTS
   const pool = getPool()
 
-  logger.info(`Parsing ${lists.length} list(s)`)
+  console.log(`\n${'='.repeat(60)}`)
+  console.log(`📝 Parsing ${lists.length} list(s)`)
+  console.log(`${'='.repeat(60)}`)
 
   let totalMessages = 0
   let totalFiles = 0
 
   try {
-    for (const list of lists) {
+    for (let listIdx = 0; listIdx < lists.length; listIdx++) {
+      const list = lists[listIdx]
       const files = getMboxFiles(list)
       if (files.length === 0) {
-        logger.info(`No mbox files found for ${list}`)
+        console.log(`\n⚠️  No mbox files found for ${list}`)
         continue
       }
 
-      logger.info(`\nProcessing ${list}: ${files.length} file(s)`)
+      console.log(`\n📧 List ${listIdx + 1}/${lists.length}: ${list} (${files.length} file(s))`)
 
       // Ensure mailbox exists
       await ensureMailbox(pool, list)
 
-      for (const filePath of files) {
+      for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
+        const filePath = files[fileIdx]
         const filename = path.basename(filePath)
-        logger.info(`  Parsing: ${filename}`)
+        console.log(`  [${fileIdx + 1}/${files.length}] 📄 Parsing ${filename}...`)
 
         try {
           const messages = await parseMboxFile(filePath, logger)
 
           if (messages.length === 0) {
-            logger.debug(`    No messages in ${filename}`)
+            console.log(`     ⚠️  No messages found`)
             continue
           }
 
           // Insert in batches
+          const totalBatches = Math.ceil(messages.length / BATCH_SIZE)
           for (let i = 0; i < messages.length; i += BATCH_SIZE) {
             const batch = messages.slice(i, i + BATCH_SIZE)
+            const batchNum = Math.floor(i / BATCH_SIZE) + 1
+            process.stdout.write(`     💾 Inserting batch ${batchNum}/${totalBatches}...\r`)
             await insertMessagesBatch(pool, batch, list)
-            logger.debug(`    Inserted batch ${Math.floor(i / BATCH_SIZE) + 1}`)
           }
 
-          logger.info(`    Loaded ${messages.length} messages`)
+          console.log(`     ✅ Loaded ${messages.length} messages${' '.repeat(20)}`)
           totalMessages += messages.length
           totalFiles++
         } catch (err) {
+          console.log(`     ❌ Failed: ${err.message}`)
           logger.error(`    Failed to process ${filename}: ${err.message}`)
         }
       }
@@ -192,9 +199,11 @@ async function main() {
       await updateMailboxCount(pool, list)
     }
 
-    logger.info(`\nParse complete:`)
-    logger.info(`  Files processed: ${totalFiles}`)
-    logger.info(`  Messages loaded: ${totalMessages}`)
+    console.log(`\n${'='.repeat(60)}`)
+    console.log(`✨ Parse complete!`)
+    console.log(`   Files processed: ${totalFiles}`)
+    console.log(`   Messages loaded: ${totalMessages.toLocaleString()}`)
+    console.log(`${'='.repeat(60)}`)
   } finally {
     await closePool()
   }
