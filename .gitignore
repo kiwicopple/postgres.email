@@ -12,6 +12,7 @@ node_modules
 /public/build
 /.next/
 /out/
+*.tsbuildinfo
 
 fdw.sql
 archives/**/*
