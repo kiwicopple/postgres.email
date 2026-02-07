@@ -1,18 +1,16 @@
 import { getSupabase } from "@/lib/supabase"
-import type { Database } from "@/lib/database.types"
+import type { Thread, ThreadData } from "@/types"
 
-// PMC: CLI is not exporting View types, so we need to manually
-// create this for now.
-type Message = Database["public"]["Tables"]["messages"]["Row"]
-export type Thread = Message & {
-  thread_id: string
-}
+export type { Thread, ThreadData, ThreadDataSuccess, ThreadDataError } from "@/types"
 
-export type ThreadData = Awaited<ReturnType<typeof getThread>>
-export type ThreadDataSuccess = NonNullable<ThreadData["data"]>
-export type ThreadDataError = ThreadData["error"]
+export async function getThread(id: string): Promise<ThreadData> {
+  const { data, error } = await getSupabase()
+    .from("threads")
+    .select("*")
+    .eq("thread_id", id)
 
-export async function getThread(id: string) {
-  // @ts-ignore-next-line - remove this when CLI is fixed
-  return await getSupabase().from("threads").select(`*`).eq("thread_id", id)
+  return {
+    data: data as Thread[] | null,
+    error: error as Error | null
+  }
 }

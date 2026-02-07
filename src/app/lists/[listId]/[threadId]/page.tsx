@@ -2,9 +2,10 @@ import Link from "next/link"
 import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "@/models/thread"
 import ThreadView from "./ThreadView"
+import { REVALIDATE_INTERVAL } from "@/lib/constants"
 
-// Revalidate every 60 seconds - this is a read-only archive
-export const revalidate = 60
+// Revalidate - this is a read-only archive
+export const revalidate = REVALIDATE_INTERVAL
 
 export default async function ThreadPage({
   params,

@@ -1,10 +1,8 @@
 "use client"
 
-import Link from "next/link"
 import { usePathname } from "next/navigation"
-import type { ListDetailDataSuccess } from "@/models/list"
-
-type Message = NonNullable<ListDetailDataSuccess>["messages"][0]
+import type { ListDetailDataSuccess } from "@/types"
+import MessageThread from "@/components/MessageThread"
 
 export default function MessageList({
   list,
@@ -34,7 +32,7 @@ export default function MessageList({
         </div>
         <nav className="z-50 flex flex-col flex-grow border-r overflow-y-auto">
           <ul>
-            {list.messages.map((message: Message) => (
+            {list.messages.map((message) => (
               <MessageThread
                 key={message.id}
                 message={message}
@@ -48,45 +46,5 @@ export default function MessageList({
         {children}
       </div>
     </div>
-  )
-}
-
-function MessageThread({
-  message,
-  href,
-}: {
-  message: Message
-  href: string
-}) {
-  const from = message.from_addresses!
-  // @ts-ignore
-  const sender: { name?: string; address: string } = from[0]
-  const timestamp = new Date(message.ts!).toLocaleDateString()
-
-  const pathname = usePathname()
-  const isActive = decodeURI(pathname) === href
-  const activeClass = "text-red"
-  const inactiveClass = "text-gray-500"
-
-  return (
-    <Link
-      href={href}
-      className={isActive ? activeClass : inactiveClass}
-    >
-      <li
-        key={message.id}
-        className="flex flex-col p-2 py-4 border-b hover:bg-gray-800 text-sm"
-      >
-        <div className="flex flex-row">
-          <span className="font-bold flex-grow whitespace-nowrap text-ellipsis overflow-hidden">
-            {sender.name || sender.address || String(sender)}
-          </span>
-          <span className="text-xs">{timestamp}</span>
-        </div>
-        <div className="whitespace-nowrap text-ellipsis overflow-hidden">
-          {message.subject}
-        </div>
-      </li>
-    </Link>
   )
 }
