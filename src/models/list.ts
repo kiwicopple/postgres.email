@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/supabase"
 import type { Database } from "@/lib/database.types"
+import { DEFAULT_PAGE_SIZE, getPagination } from "@/lib/utils"
 
 type messages = Database["public"]["Tables"]["messages"]["Row"]
 
@@ -23,7 +24,9 @@ export type ListDetailDataSuccess = NonNullable<ListDetailData["data"]> & {
 }
 export type ListDetailDataError = ListDetailData["error"]
 
-export async function getListDetail(id: string) {
+export async function getListDetail(id: string, page: number = 0) {
+  const { from, to } = getPagination(page, DEFAULT_PAGE_SIZE)
+
   return await getSupabase()
     .from("mailboxes")
     .select(`
@@ -41,5 +44,6 @@ export async function getListDetail(id: string) {
     .eq("id", id)
     .is("messages.in_reply_to", null)
     .order("ts", { foreignTable: "messages", ascending: false })
+    .range(from, to, { foreignTable: "messages" })
     .single()
 }
