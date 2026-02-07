@@ -29,7 +29,8 @@ to make search actually work.
 │  (body_text)        (split)      (gte-small local)    (S3-backed)    │
 │                                                                      │
 │  Each chunk stored with metadata:                                    │
-│  { message_id, mailbox_id, subject, from_email, ts, chunk_index }    │
+│  { message_id, mailbox_id, subject, from_email, ts, chunk_index,     │
+│    embedding_model }                                                 │
 └──────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -47,9 +48,6 @@ to make search actually work.
 │                                      │                               │
 │                                      ▼                               │
 │                        Fetch full messages from Postgres              │
-│                                      │                               │
-│                                      ▼                               │
-│                        (Optional) LLM summarize/RAG answer           │
 │                                      │                               │
 │                                      ▼                               │
 │                        Return to frontend                            │
@@ -211,6 +209,7 @@ async function embedAndStore(chunks, extractor, vectorIndex) {
       from_email: chunk.from_email,
       ts: chunk.ts,
       chunk_index: chunk.chunk_index,
+      embedding_model: 'gte-small',
     },
   }))
 
@@ -374,108 +373,31 @@ Deno.serve(async (req) => {
 
 ---
 
-## Phase 5: RAG / AI-Powered Search (Optional)
-
-**Goal:** Use retrieved chunks as context for an LLM to synthesize an answer.
-
-### 5.1 Architecture
-
-```
-User query ──► Embed ──► Vector Bucket (top-K chunks)
-                              │
-                              ▼
-                    Assemble context window
-                              │
-                              ▼
-                    LLM call (Claude or GPT-4o-mini)
-                              │
-                              ▼
-                    { answer, sources[], results[] }
-```
-
-### 5.2 Create `supabase/functions/search-rag/index.ts`
-
-1. Retrieve top-20 chunks from vector bucket
-2. Deduplicate and rank
-3. Build context string from top chunks
-4. Call LLM with system prompt:
-   - Answer based only on provided excerpts
-   - Cite sources by subject and author
-   - Say "I don't have enough information" when appropriate
-5. Return AI answer + raw search results
-
-### 5.3 Prompt template
-
-```
-You are a PostgreSQL expert assistant. You have access to excerpts from the PostgreSQL
-mailing lists. Answer the user's question based ONLY on the provided excerpts.
-
-Rules:
-- Cite your sources by referencing the email subject and author
-- If the excerpts don't contain enough information, say so clearly
-- Be concise and technical
-- Format code examples in markdown code blocks
-
-Excerpts:
----
-{chunks with metadata}
----
-
-Question: {user_query}
-```
-
-### 5.4 Cost and latency
-
-| Component | Latency | Cost per query |
-|---|---|---|
-| Query embedding (gte-small) | ~10-50ms | **Free** |
-| Vector bucket search | ~200-500ms | Free (alpha) |
-| LLM synthesis | ~1-3s | ~$0.001-0.005 |
-| **Total** | **~1.5-4s** | **~$0.005** |
-
----
-
-## Phase 6: Frontend Updates
+## Phase 5: Frontend Updates
 
 **Goal:** Replace the "Search coming soon" placeholder with real search results.
 
-### 6.1 Update search page
+### 5.1 Update search page
 
 Replace `src/app/lists/search/page.tsx`:
 - Render ranked message results (subject, author, date, snippet)
 - Link each result to the thread view
 - Add optional `mailbox_id` filter from query string
 
-### 6.2 Add mailing list filter
+### 5.2 Add mailing list filter
 
 Dropdown/selector to scope search:
 ```
 /lists/search?q=toast+table&list=pgsql-hackers
 ```
 
-### 6.3 (Optional) AI answer display
-
-If RAG is enabled, show synthesized answer above results:
-```
-┌─────────────────────────────────────┐
-│ AI Answer                           │
-│ Based on the mailing list archives: │
-│ ...synthesized answer...            │
-│ Sources: [linked message subjects]  │
-└─────────────────────────────────────┘
-
-── Search Results ──────────────────────
-1. [Message from Tom Lane] ...
-2. [Message from Robert Haas] ...
-```
-
 ---
 
-## Phase 7: Full Pipeline Orchestration
+## Phase 6: Full Pipeline Orchestration
 
 **Goal:** Single command to run the entire ingestion pipeline.
 
-### 7.1 Create `scripts/pipeline.js`
+### 6.1 Create `scripts/pipeline.js`
 
 Orchestrates: download → parse → chunk → embed. All steps incremental.
 
@@ -484,7 +406,7 @@ Orchestrates: download → parse → chunk → embed. All steps incremental.
 "pipeline:prod": "npm run download -- --from $(date +%Y-%m) && npm run parse:prod && npm run chunk:prod && npm run embed:vectors:prod"
 ```
 
-### 7.2 Cron / scheduled execution
+### 6.2 Cron / scheduled execution
 
 Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily or weekly.
 
@@ -534,7 +456,6 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 | `scripts/chunk.js` | Chunk messages into `message_chunks` |
 | `scripts/embed-vectors.js` | Embed chunks with `gte-small` → vector bucket |
 | `scripts/pipeline.js` | Orchestrate full ingestion pipeline |
-| `supabase/functions/search-rag/index.ts` | (Optional) RAG-powered search |
 | `supabase/migrations/XXXXXX_message_chunks.sql` | `message_chunks` table |
 
 ### Modified files
@@ -561,13 +482,8 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 
 ## Open Questions
 
-1. **Vector Buckets is in Public Alpha** — monitor for breaking changes.
-2. **FDW access** — `s3_vectors` wrapper lets you query vector buckets from SQL with
-   `<===>` operator. Could avoid the two-step fetch in the Edge Function.
-3. **Embedding model versioning** — store model name in chunk metadata to detect stale
+1. **Embedding model versioning** — store model name in chunk metadata to detect stale
    embeddings after model upgrades.
-4. **Hybrid search** — combine vector similarity with `tsvector` full-text search for
-   keyword-precise queries. A hybrid ranker could merge both result sets.
 
 ---
 
@@ -581,13 +497,12 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 - [Vector Bucket Limits](https://supabase.com/docs/guides/storage/vector/limits)
 - [JavaScript SDK: Vector Buckets](https://supabase.com/docs/reference/javascript/vector-buckets)
 - [Blog: Introducing Vector Buckets](https://supabase.com/blog/vector-buckets)
-- [AWS S3 Vectors FDW](https://supabase.com/docs/guides/database/extensions/wrappers/s3_vectors)
 
 ### Embedding (gte-small)
 - [Running AI Models in Edge Functions](https://supabase.com/docs/guides/functions/ai-models)
 - [Supabase/gte-small on Hugging Face](https://huggingface.co/Supabase/gte-small)
 - [Transformers.js (ONNX runtime for Node/Deno)](https://huggingface.co/docs/transformers.js)
 
-### Chunking & RAG
-- [Chunking Strategies for RAG (Pinecone)](https://www.pinecone.io/learn/chunking-strategies/)
-- [Chunking Strategies for RAG (Weaviate)](https://weaviate.io/blog/chunking-strategies-for-rag)
+### Chunking
+- [Chunking Strategies (Pinecone)](https://www.pinecone.io/learn/chunking-strategies/)
+- [Chunking Strategies (Weaviate)](https://weaviate.io/blog/chunking-strategies-for-rag)
