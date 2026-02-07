@@ -92,6 +92,8 @@ postgres.email/
 - `messages_mailbox_id_idx`: Foreign key index for joins
 - `messages_ts_idx`: For ordering by timestamp
 - `messages(in_reply_to)`: For threading queries
+- `idx_messages_mailbox_root_threads`: Partial index for root threads (WHERE in_reply_to IS NULL) per mailbox
+- `idx_messages_mailbox_ts`: Composite index for all messages per mailbox ordered by timestamp
 - Vector index on `embedding`: For semantic search
 
 ## Critical Performance Patterns
