@@ -1,13 +1,8 @@
 import type { Config } from "tailwindcss"
-import colors from "tailwindcss/colors"
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx,jsx,js}"],
   theme: {
-    borderColor: ({ theme }: { theme: (path: string, defaultValue?: string) => string }) => ({
-      ...colors,
-      DEFAULT: theme("colors.gray.800", "currentColor"),
-    }),
     extend: {
       screens: {
         "3xl": "1700px",
@@ -18,9 +13,6 @@ const config: Config = {
         "12": "12px",
         "14": "14px",
         "16": "16px",
-      },
-      colors: {
-        gray: colors.neutral,
       },
     },
   },

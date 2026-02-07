@@ -1,8 +1,7 @@
-import Link from "next/link"
-import clsx from "clsx"
 import { getLists } from "@/models/list"
 import QuickSearch from "@/components/QuickSearch"
 import MobileNav from "@/components/MobileNav"
+import ListNav from "@/components/ListNav"
 
 export const dynamic = "force-dynamic"
 
@@ -15,11 +14,6 @@ export default async function ListsLayout({
 
   if (error) throw new Error(error.message)
   if (!lists) throw new Error("Lists not found")
-
-  const baseClass =
-    "group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer"
-  const inactiveClass =
-    baseClass + "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
 
   return (
     <div className="h-full ">
@@ -36,25 +30,7 @@ export default async function ListsLayout({
             <h4>Lists</h4>
           </div>
           <div className="mt-3 flex-grow flex flex-col">
-            <nav className="flex-1 px-2 pb-4 space-y-1 text-sm">
-              {lists?.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/lists/${item.id}`}
-                  className={clsx(
-                    "px-3 py-1.5 flex items-center gap-4 transition-colors rounded-lg group",
-                    inactiveClass
-                  )}
-                >
-                  <>
-                    <div className="flex-1">{item.id}</div>
-                    <span className="px-1 py-0.5 text-xs">
-                      {String(item.message_count).padStart(3, " ")}
-                    </span>
-                  </>
-                </Link>
-              ))}
-            </nav>
+            <ListNav lists={lists} />
           </div>
         </div>
       </div>

@@ -2,6 +2,8 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { usePathname } from "next/navigation"
+import clsx from "clsx"
 
 type ListItem = {
   id: string
@@ -10,6 +12,7 @@ type ListItem = {
 
 export default function MobileNav({ lists }: { lists: ListItem[] }) {
   const [open, setOpen] = useState(false)
+  const pathname = usePathname()
 
   return (
     <div className="md:hidden">
@@ -33,17 +36,25 @@ export default function MobileNav({ lists }: { lists: ListItem[] }) {
       </div>
       {open && (
         <nav className="border-b border-gray-800 px-4 py-3 space-y-1">
-          {lists.map((item) => (
-            <Link
-              key={item.id}
-              href={`/lists/${item.id}`}
-              onClick={() => setOpen(false)}
-              className="flex items-center justify-between px-3 py-2 text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-md"
-            >
-              <span>{item.id}</span>
-              <span className="text-xs">{item.message_count}</span>
-            </Link>
-          ))}
+          {lists.map((item) => {
+            const isActive = pathname.startsWith(`/lists/${item.id}`)
+
+            return (
+              <Link
+                key={item.id}
+                href={`/lists/${item.id}`}
+                onClick={() => setOpen(false)}
+                className={clsx(
+                  "flex items-center px-3 py-2 text-sm rounded-md",
+                  isActive
+                    ? "bg-blue-900 text-white font-medium"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                )}
+              >
+                <span>{item.id}</span>
+              </Link>
+            )
+          })}
         </nav>
       )}
     </div>
