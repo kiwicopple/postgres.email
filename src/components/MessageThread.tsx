@@ -23,14 +23,14 @@ export default function MessageThread({ message, href }: MessageThreadProps) {
       className={isActive ? activeClass : inactiveClass}
     >
       <li className="flex flex-col p-2 py-4 border-b hover:bg-gray-800 text-sm">
+        <div className="whitespace-nowrap text-ellipsis overflow-hidden pb-1">
+          {message.subject}
+        </div>
         <div className="flex flex-row">
-          <span className="font-bold flex-grow whitespace-nowrap text-ellipsis overflow-hidden">
+          <span className="text-xs flex-grow whitespace-nowrap text-ellipsis overflow-hidden">
             {senderInfo.name}
           </span>
           <span className="text-xs">{timestamp}</span>
-        </div>
-        <div className="whitespace-nowrap text-ellipsis overflow-hidden">
-          {message.subject}
         </div>
       </li>
     </Link>

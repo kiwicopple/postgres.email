@@ -70,14 +70,17 @@ export async function getListDetail(
   let result = data as ListDetail | null
   if (result && limit !== undefined) {
     const messageCount = result.messages?.length ?? 0
-    const total = result.message_count ?? 0
+    // For pagination, we need to determine if there are more messages available
+    // Since we can't know the total count of filtered messages without a separate query,
+    // we'll check if we got a full page - if we got fewer than limit, we're done
+    const hasMore = messageCount === limit
     result = {
       ...result,
       pagination: {
         limit,
         offset,
-        total,
-        hasMore: offset + messageCount < total
+        total: result.message_count ?? 0, // This is the total unfiltered count
+        hasMore
       }
     }
   }
