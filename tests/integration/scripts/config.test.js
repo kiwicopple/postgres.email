@@ -25,6 +25,11 @@ describe('parseArgs', () => {
     expect(result.force).toBe(true)
   })
 
+  it('parses --dry-run flag', () => {
+    const result = parseArgs(['--dry-run'])
+    expect(result.dryRun).toBe(true)
+  })
+
   it('parses --limit argument', () => {
     const result = parseArgs(['--limit', '100'])
     expect(result.limit).toBe(100)
@@ -44,6 +49,7 @@ describe('parseArgs', () => {
     expect(result.from).toBeNull()
     expect(result.to).toBeNull()
     expect(result.force).toBe(false)
+    expect(result.dryRun).toBe(false)
     expect(result.limit).toBeNull()
     expect(result.verbose).toBe(false)
   })

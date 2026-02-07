@@ -96,29 +96,6 @@ function buildVectors(chunks, embeddings) {
 }
 
 /**
- * Embed and store a batch of chunks
- * @param {Array} chunks
- * @param {Function} embedFn - Function that takes array of texts, returns array of embeddings
- * @param {Object} vectorIndex - Supabase vector bucket index
- * @returns {Promise<number>} Number of chunks embedded
- */
-async function embedAndStoreBatch(chunks, embedFn, vectorIndex) {
-  const texts = chunks.map(c => c.chunk_text)
-  const embeddings = await embedFn(texts)
-
-  const vectors = buildVectors(chunks, embeddings)
-
-  // Upsert to vector bucket in batches
-  for (let i = 0; i < vectors.length; i += UPSERT_BATCH_SIZE) {
-    const batch = vectors.slice(i, i + UPSERT_BATCH_SIZE)
-    const { error } = await vectorIndex.putVectors({ vectors: batch })
-    if (error) throw new Error(`putVectors failed: ${error.message}`)
-  }
-
-  return chunks.length
-}
-
-/**
  * Create the embedding function using @xenova/transformers
  * @returns {Promise<Function>} Function that takes string[] and returns embedding[]
  */
@@ -140,11 +117,11 @@ async function main() {
   const logger = createLogger({ verbose: options.verbose })
 
   const lists = options.lists || DEFAULT_LISTS
+  const dryRun = options.dryRun
   const pool = getPool()
-  const supabase = getSupabase()
 
   console.log(`\n${'='.repeat(60)}`)
-  console.log(`Embedding messages for ${lists.length} list(s)`)
+  console.log(`Embedding messages for ${lists.length} list(s)${dryRun ? ' (DRY RUN)' : ''}`)
   console.log(`${'='.repeat(60)}`)
 
   try {
@@ -153,10 +130,14 @@ async function main() {
     const embedFn = await createEmbedFn()
     console.log('Model loaded.')
 
-    // Get vector bucket index
-    const vectorIndex = supabase.storage.vectors
-      .from('email-embeddings')
-      .index('email-chunks')
+    // Get vector bucket index (skip in dry-run mode)
+    let vectorIndex = null
+    if (!dryRun) {
+      const supabase = getSupabase()
+      vectorIndex = supabase.storage.vectors
+        .from('email-embeddings')
+        .index('email-chunks')
+    }
 
     const batchSize = options.limit
       ? Math.min(parseInt(options.limit, 10), BATCH_SIZE)
@@ -166,7 +147,10 @@ async function main() {
     let totalChunks = 0
     let totalSkipped = 0
     let batchNum = 0
-    let remaining = options.limit ? parseInt(options.limit, 10) : Infinity
+    // In dry-run mode, default to one batch since rows aren't marked as processed
+    let remaining = options.limit
+      ? parseInt(options.limit, 10)
+      : dryRun ? BATCH_SIZE : Infinity
 
     // Fetch and process in batches — each batch is a self-contained unit.
     // After marking embedded_at, the next fetch naturally skips processed rows.
@@ -182,14 +166,31 @@ async function main() {
       const chunks = chunkMessages(batch)
       const skipped = batch.length - new Set(chunks.map(c => c.message_id)).size
 
-      // Embed and store
       if (chunks.length > 0) {
-        await embedAndStoreBatch(chunks, embedFn, vectorIndex)
+        const texts = chunks.map(c => c.chunk_text)
+        const embeddings = await embedFn(texts)
+        const vectors = buildVectors(chunks, embeddings)
+
+        if (dryRun) {
+          // Output vectors as JSON to stdout for inspection
+          for (const v of vectors) {
+            console.log(JSON.stringify(v))
+          }
+        } else {
+          // Upsert to vector bucket in batches
+          for (let i = 0; i < vectors.length; i += UPSERT_BATCH_SIZE) {
+            const upsertBatch = vectors.slice(i, i + UPSERT_BATCH_SIZE)
+            const { error } = await vectorIndex.putVectors({ vectors: upsertBatch })
+            if (error) throw new Error(`putVectors failed: ${error.message}`)
+          }
+        }
       }
 
-      // Mark all messages in batch as embedded (including skipped — they don't need re-processing)
-      const batchIds = batch.map(m => m.id)
-      await markMessagesEmbedded(pool, batchIds)
+      // Mark all messages in batch as embedded (skip in dry-run)
+      if (!dryRun) {
+        const batchIds = batch.map(m => m.id)
+        await markMessagesEmbedded(pool, batchIds)
+      }
 
       totalMessages += batch.length
       totalChunks += chunks.length
@@ -224,7 +225,6 @@ module.exports = {
   markMessagesEmbedded,
   chunkMessages,
   buildVectors,
-  embedAndStoreBatch,
   EMBEDDING_MODEL,
   BATCH_SIZE,
 }

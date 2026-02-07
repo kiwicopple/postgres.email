@@ -29,6 +29,7 @@ function parseArgs(args = process.argv.slice(2)) {
     from: null,
     to: null,
     force: false,
+    dryRun: false,
     limit: null,
     verbose: false,
   }
@@ -44,6 +45,8 @@ function parseArgs(args = process.argv.slice(2)) {
       options.to = args[++i]
     } else if (arg === '--force') {
       options.force = true
+    } else if (arg === '--dry-run') {
+      options.dryRun = true
     } else if (arg === '--limit' && args[i + 1]) {
       options.limit = parseInt(args[++i], 10)
     } else if (arg === '--verbose' || arg === '-v') {
