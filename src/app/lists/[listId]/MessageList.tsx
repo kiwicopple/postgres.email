@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import type { ListDetailDataSuccess, MessageListMetadata } from "@/types"
 import MessageThread from "@/components/MessageThread"
+import { stripMessageIdBrackets } from "@/lib/formatters"
 
 export default function MessageList({
   list,
@@ -62,7 +63,7 @@ export default function MessageList({
               <MessageThread
                 key={message.id}
                 message={message}
-                href={`/lists/${list.id}/${message.id}`}
+                href={`/lists/${list.id}/${encodeURIComponent(stripMessageIdBrackets(message.id))}`}
               />
             ))}
           </ul>

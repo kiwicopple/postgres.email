@@ -4,7 +4,7 @@ import type { TreeItem } from "performant-array-to-tree"
 import type { Thread } from "@/types"
 import { useState } from "react"
 import { useFormatting } from "./FormattingProvider"
-import { formatDate, getSenderName } from "@/lib/formatters"
+import { formatDate, getSenderName, stripMessageIdBrackets } from "@/lib/formatters"
 import FormattedBody from "./FormattedBody"
 
 function PlainBody({ text }: { text: string | null }) {
@@ -99,7 +99,16 @@ export default function ThreadItem({
               <PlainBody text={message.body_text} />
             )}
           </div>
-          <div className="thread-footer py-2 border-b border-gray-700" />
+          <div className={`thread-footer py-2 border-b border-gray-700 ${isRoot ? "pl-3 pr-3" : "pl-6 pr-3"}`}>
+            <a
+              href={`https://www.postgresql.org/message-id/${encodeURIComponent(stripMessageIdBrackets(message.id))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-500 hover:text-blue-400"
+            >
+              View in PostgreSQL Archives →
+            </a>
+          </div>
 
           {children && children.length > 0 && (
             <ul className={`replies ${isRoot ? "" : "ml-3"}`}>

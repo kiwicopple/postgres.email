@@ -3,6 +3,7 @@ import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "@/models/thread"
 import ThreadView from "./ThreadView"
 import { REVALIDATE_INTERVAL } from "@/lib/constants"
+import { normalizeMessageId } from "@/lib/formatters"
 
 // Revalidate - this is a read-only archive
 export const revalidate = REVALIDATE_INTERVAL
@@ -13,7 +14,7 @@ export default async function ThreadPage({
   params: { listId: string; threadId: string }
 }) {
   const { listId, threadId: rawThreadId } = params
-  const threadId = decodeURIComponent(rawThreadId)
+  const threadId = normalizeMessageId(decodeURIComponent(rawThreadId))
 
   const { data: thread, error } = await getThread(threadId)
 

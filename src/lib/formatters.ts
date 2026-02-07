@@ -56,3 +56,22 @@ export function formatSenderInfo(from_addresses: unknown, from_email?: string): 
     address: from_email || ""
   }
 }
+
+/**
+ * Strips angle brackets from a message ID for use in URLs
+ * Example: "<123@example.com>" -> "123@example.com"
+ */
+export function stripMessageIdBrackets(messageId: string): string {
+  return messageId.replace(/^<|>$/g, '')
+}
+
+/**
+ * Ensures a message ID has angle brackets for database queries
+ * Example: "123@example.com" -> "<123@example.com>"
+ */
+export function normalizeMessageId(messageId: string): string {
+  if (messageId.startsWith('<') && messageId.endsWith('>')) {
+    return messageId
+  }
+  return `<${messageId}>`
+}
