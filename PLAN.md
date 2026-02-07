@@ -18,6 +18,7 @@ removed in a follow-up commit.
 | **Latency** | Sub-50ms with tuned indexes | Sub-second (hundreds of ms) — sufficient for search UX |
 | **Maintenance** | Requires manual index tuning, VACUUM management | Fully managed indexing and optimization |
 | **Chunking** | One embedding per message (no chunking) — long emails lose precision | Chunk-level embeddings with metadata back-references to source messages |
+| **Embedding** | Requires OpenAI API key and external API calls | Built-in `gte-small` model runs natively inside Edge Functions — no API key, no external calls, no cost per token |
 
 Vector Buckets and pgvector are **complementary**. The recommended architecture is:
 keep pgvector for small, latency-critical hot paths (if any), and use Vector Buckets
@@ -52,8 +53,8 @@ Download (mbox) ──► Parse (messages table) ──► Embed (OpenAI ada-002
 
 1. **No chunking** — each email gets a single embedding regardless of length. Long emails
    (common on pgsql-hackers) dilute the semantic signal.
-2. **text-embedding-ada-002** — older model; `text-embedding-3-small` (1536-dim) or
-   `text-embedding-3-large` (3072-dim, truncatable) are cheaper and higher quality.
+2. **OpenAI dependency** — requires an API key, costs money per token, and sends email
+   content to a third-party API. Uses the older `text-embedding-ada-002` model.
 3. **No metadata filtering** — search returns all lists; no way to scope by mailing list,
    date range, or author.
 4. **No RAG/AI answer layer** — results are raw message rows, not synthesized answers.
@@ -69,7 +70,7 @@ Download (mbox) ──► Parse (messages table) ──► Embed (OpenAI ada-002
 │                      INGESTION PIPELINE                              │
 │                                                                      │
 │  messages table ──► chunk.js ──► embed-vectors.js ──► Vector Bucket  │
-│  (body_text)        (split)      (OpenAI 3-small)     (S3-backed)    │
+│  (body_text)        (split)      (gte-small local)    (S3-backed)    │
 │                                                                      │
 │  Each chunk stored with metadata:                                    │
 │  { message_id, mailbox_id, subject, from_email, ts, chunk_index }    │
@@ -79,7 +80,7 @@ Download (mbox) ──► Parse (messages table) ──► Embed (OpenAI ada-002
 ┌──────────────────────────────────────────────────────────────────────┐
 │                       SEARCH LAYER                                   │
 │                                                                      │
-│  User query ──► Edge Function ──► embed query (OpenAI 3-small)       │
+│  User query ──► Edge Function ──► embed query (gte-small built-in)   │
 │                                      │                               │
 │                    ┌─────────────────┼─────────────────┐             │
 │                    ▼                 ▼                  ▼             │
@@ -136,11 +137,11 @@ async function setup() {
     throw bucketError
   }
 
-  // Create index for email chunks (1536-dim for text-embedding-3-small)
+  // Create index for email chunks (384-dim for gte-small)
   const bucket = supabase.storage.vectors.from('email-embeddings')
   const { error: indexError } = await bucket.createIndex({
     indexName: 'email-chunks',
-    dimension: 1536,
+    dimension: 384,
     distanceMetric: 'cosine',
   })
   if (indexError && !indexError.message.includes('already exists')) {
@@ -164,7 +165,7 @@ Add npm script:
 |---|---|---|
 | Bucket name | `email-embeddings` | Descriptive, single-purpose |
 | Index name | `email-chunks` | Reflects that we store chunk-level vectors, not whole emails |
-| Dimension | `1536` | Matches `text-embedding-3-small` (same dimension as ada-002, better quality, 5x cheaper) |
+| Dimension | `384` | Matches `gte-small` — Supabase's built-in model. 4x smaller than ada-002 → faster search, less storage |
 | Distance metric | `cosine` | Standard for text similarity; consistent with current pgvector search |
 
 ---
@@ -240,31 +241,69 @@ message is still searchable via the existing full-text/pgvector path if needed.
 
 **Goal:** Embed chunks and store them in the vector bucket instead of the `messages` table.
 
-#### 3.1 Create `scripts/embed-vectors.js`
+#### 3.1 Embedding model: `gte-small` (no OpenAI dependency)
 
-This replaces the role of `scripts/embed.js` but targets vector buckets:
+Supabase Edge Functions ship with a **built-in embedding model** — `gte-small` — that runs
+natively via a Rust ONNX integration. No API key, no external network calls, no per-token
+cost.
+
+| Model | Dimensions | MTEB Score | Cost | API Key Required |
+|---|---|---|---|---|
+| `text-embedding-ada-002` (current) | 1536 | 61.0 | $0.10/1M tokens | Yes (OpenAI) |
+| `text-embedding-3-small` | 1536 | 62.3 | $0.02/1M tokens | Yes (OpenAI) |
+| **`gte-small` (recommended)** | **384** | **61.4** | **Free** (Edge Function compute only) | **No** |
+
+**Why `gte-small`:**
+- Quality is within 1 point of OpenAI models on MTEB benchmarks — negligible for search
+- **384 dimensions** = 4x less storage, 4x faster similarity computation
+- **Zero cost** per embedding — only Edge Function compute time
+- **No external dependency** — data never leaves Supabase infrastructure
+- **No API key management** — simpler deployment, no secrets to rotate
+- Supabase maintains the ONNX weights at [Supabase/gte-small](https://huggingface.co/Supabase/gte-small)
+
+#### 3.2 Embedding in Edge Functions (query-time)
+
+For query-time embedding in the search Edge Function, use the built-in `Supabase.ai.Session`:
+
+```ts
+// No imports needed — Supabase.ai is a global in Edge Runtime
+const session = new Supabase.ai.Session('gte-small')
+
+const embedding = await session.run(queryText, {
+  mean_pool: true,   // Average pooling for sentence embeddings
+  normalize: true,   // Normalize for cosine similarity
+})
+// Returns Float32Array of 384 dimensions
+```
+
+The session is initialized once and reused across requests within the same Edge Function
+instance. No cold-start overhead after the first request.
+
+#### 3.3 Embedding in batch script (ingestion-time)
+
+For the batch embedding pipeline (`scripts/embed-vectors.js`), we run `gte-small` locally
+using `@xenova/transformers` (Transformers.js — ONNX runtime for Node.js):
 
 ```js
-// Pseudocode for the embedding pipeline
-const EMBEDDING_MODEL = 'text-embedding-3-small'
-const BATCH_SIZE = 100       // chunks per DB fetch
-const EMBED_BATCH_SIZE = 50  // embeddings per OpenAI call (batched input)
-const UPSERT_BATCH_SIZE = 250 // vectors per putVectors call (max 500)
-const CONCURRENCY = 5
+const { pipeline } = require('@xenova/transformers')
 
-async function embedAndStore(chunks, openai, vectorIndex) {
-  // 1. Batch embed with OpenAI (supports array input)
+// Initialize once — downloads and caches the ONNX model (~70MB)
+const extractor = await pipeline('feature-extraction', 'Supabase/gte-small')
+
+const BATCH_SIZE = 100       // chunks per DB fetch
+const UPSERT_BATCH_SIZE = 250 // vectors per putVectors call (max 500)
+
+async function embedAndStore(chunks, extractor, vectorIndex) {
+  // 1. Batch embed locally with gte-small
   const texts = chunks.map(c => c.chunk_text)
-  const response = await openai.embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: texts,
-    encoding_format: 'float',
-  })
+  const output = await extractor(texts, { pooling: 'mean', normalize: true })
+  // output.tolist() returns array of 384-dim arrays
 
   // 2. Build vector objects with metadata
+  const embeddings = output.tolist()
   const vectors = chunks.map((chunk, i) => ({
     key: chunk.id,   // e.g., "<msg-id>#chunk0"
-    data: { float32: response.data[i].embedding },
+    data: { float32: embeddings[i] },
     metadata: {
       message_id: chunk.message_id,
       mailbox_id: chunk.mailbox_id,
@@ -284,9 +323,16 @@ async function embedAndStore(chunks, openai, vectorIndex) {
 }
 ```
 
+Install the dependency:
+```bash
+npm install @xenova/transformers
+```
+
 Key design decisions:
-- **Batch OpenAI calls** — `text-embedding-3-small` accepts array inputs, so we send
-  50 texts at once instead of 1-by-1. This is ~10x faster.
+- **Same model everywhere** — `gte-small` for both ingestion and query-time embedding.
+  This is critical: the query embedding model MUST match the document embedding model.
+- **Local inference** — no OpenAI API calls, no rate limits, no per-token costs.
+  Embedding 3M chunks costs $0 in API fees.
 - **Batch upserts** — `putVectors` supports up to 500 vectors per call. We use 250 for
   safety margin.
 - **Upsert semantics** — if a vector with the same key exists, it gets overwritten. This
@@ -294,7 +340,7 @@ Key design decisions:
 - **Rich metadata** — each vector carries enough metadata to render a search result
   without a second database query.
 
-#### 3.2 Tracking embedded status
+#### 3.4 Tracking embedded status
 
 Add an `embedded_at` column to `message_chunks`:
 
@@ -305,19 +351,15 @@ alter table message_chunks add column embedded_at timestamptz;
 The pipeline fetches chunks where `embedded_at IS NULL`, and sets it after successful
 upsert. This makes the pipeline incremental and resumable.
 
-#### 3.3 Embedding model upgrade
+#### 3.5 Upgrading to a larger model later
 
-| Model | Dimensions | Price (per 1M tokens) | Quality |
-|---|---|---|---|
-| `text-embedding-ada-002` (current) | 1536 | $0.10 | Baseline |
-| `text-embedding-3-small` (recommended) | 1536 | $0.02 | Better than ada-002 |
-| `text-embedding-3-large` | 3072 (truncatable to 1536) | $0.13 | Best quality |
+If search quality needs improvement in the future, options include:
+- `Supabase/bge-small-en` (384-dim) — another model Supabase publishes ONNX weights for
+- Any Hugging Face model with ONNX weights via `@xenova/transformers`
+- OpenAI `text-embedding-3-small` (1536-dim) if API cost is acceptable
 
-**Recommendation:** Use `text-embedding-3-small`. Same 1536 dimensions as ada-002 so the
-vector bucket index doesn't change, but 5x cheaper and higher quality on benchmarks.
-
-> **Important:** The query embedding model MUST match the document embedding model. When we
-> switch models, all existing embeddings must be regenerated.
+Changing models requires re-embedding all chunks and recreating the vector bucket index
+with the new dimension. Store the model name in chunk metadata to detect stale embeddings.
 
 #### 3.4 npm scripts
 
@@ -340,8 +382,10 @@ vector bucket index doesn't change, but 5x cheaper and higher quality on benchma
 
 ```ts
 import { corsHeaders } from "../_shared/cors.ts"
-import OpenAI from "https://deno.land/x/openai@v4.24.0/mod.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+
+// Built-in gte-small model — no imports or API keys needed
+const session = new Supabase.ai.Session('gte-small')
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -354,14 +398,12 @@ Deno.serve(async (req) => {
   }
 
   const { query, mailbox_id, limit = 20 } = await req.json()
-  const openai = new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") })
 
-  // 1. Embed the user query
-  const embeddingResponse = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: query,
+  // 1. Embed the user query locally with gte-small (no API call)
+  const queryVector = await session.run(query, {
+    mean_pool: true,
+    normalize: true,
   })
-  const queryVector = embeddingResponse.data[0].embedding
 
   // 2. Query vector bucket with optional metadata filter
   const index = supabase.storage.vectors
@@ -502,9 +544,9 @@ Question: {user_query}
 
 | Component | Estimated latency | Estimated cost per query |
 |---|---|---|
-| Query embedding | ~100ms | $0.000002 (negligible) |
+| Query embedding (gte-small, local) | ~10-50ms | **Free** (runs in Edge Function) |
 | Vector bucket search | ~200-500ms | Free (alpha) / included in storage |
-| LLM synthesis (GPT-4o-mini) | ~1-3s | ~$0.001-0.005 depending on context size |
+| LLM synthesis (GPT-4o-mini or Claude) | ~1-3s | ~$0.001-0.005 depending on context size |
 | **Total** | **~1.5-4s** | **~$0.005** |
 
 This is acceptable for a search feature where users expect a brief wait for AI answers.
@@ -598,10 +640,15 @@ With an average of **3 chunks per email**, that's roughly **3M chunks** in the v
 
 ### Embedding cost estimates
 
-| Scenario | Tokens (est.) | Cost (text-embedding-3-small) |
-|---|---|---|
-| Full re-embed (1M messages, ~3M chunks) | ~1.2B tokens | ~$24 |
-| Monthly incremental (~5K messages, ~15K chunks) | ~6M tokens | ~$0.12 |
+With `gte-small` running locally via `@xenova/transformers`, embedding is **free** (CPU only):
+
+| Scenario | Chunks | Estimated time (single machine) | API cost |
+|---|---|---|---|
+| Full re-embed (1M messages, ~3M chunks) | ~3M | ~4-6 hours | **$0** |
+| Monthly incremental (~5K messages, ~15K chunks) | ~15K | ~2-3 minutes | **$0** |
+
+This is a major advantage over OpenAI — the entire 1M+ message archive can be embedded
+without any API fees.
 
 ### Query performance
 
@@ -611,7 +658,7 @@ With an average of **3 chunks per email**, that's roughly **3M chunks** in the v
 
 ### Storage
 
-- 1536-dim float32 vectors × 3M chunks = ~18 GB of vector data
+- 384-dim float32 vectors × 3M chunks = ~4.5 GB of vector data (4x smaller than 1536-dim)
 - Stored on S3 (cheap), not in PostgreSQL (expensive database disk)
 - Metadata per vector is lightweight (~200 bytes) = ~600 MB total metadata
 
@@ -649,7 +696,7 @@ With an average of **3 chunks per email**, that's roughly **3M chunks** in the v
 |---|---|
 | `scripts/setup-vector-bucket.js` | One-time setup: create bucket and index |
 | `scripts/chunk.js` | Chunk messages into `message_chunks` |
-| `scripts/embed-vectors.js` | Embed chunks → vector bucket |
+| `scripts/embed-vectors.js` | Embed chunks with `gte-small` (local) → vector bucket |
 | `scripts/pipeline.js` | Orchestrate full ingestion pipeline |
 | `supabase/functions/search-v2/index.ts` | New search Edge Function (vector bucket) |
 | `supabase/functions/search-rag/index.ts` | (Optional) RAG-powered search |
@@ -659,7 +706,7 @@ With an average of **3 chunks per email**, that's roughly **3M chunks** in the v
 
 | File | Change |
 |---|---|
-| `package.json` | Add npm scripts, update `@supabase/supabase-js` |
+| `package.json` | Add npm scripts, add `@xenova/transformers`, update `@supabase/supabase-js` |
 | `supabase/config.toml` | Register new Edge Functions |
 | `src/app/lists/search/page.tsx` | Switch to `search-v2`, add filters |
 | `src/components/QuickSearch.tsx` | Add list filter support |
@@ -678,7 +725,7 @@ With an average of **3 chunks per email**, that's roughly **3M chunks** in the v
 
 1. **Unit tests for chunking** — test paragraph splitting, overlap, edge cases (empty body,
    all-quoted email, very long emails, code-heavy emails)
-2. **Unit tests for embedding pipeline** — mock OpenAI, verify vector format and metadata
+2. **Unit tests for embedding pipeline** — mock `@xenova/transformers`, verify 384-dim vector format and metadata
 3. **Integration test: round-trip** — chunk → embed → query → verify the original message
    appears in results
 4. **Search quality comparison** — run a set of known queries against both the old pgvector
@@ -707,6 +754,7 @@ With an average of **3 chunks per email**, that's roughly **3M chunks** in the v
 
 ## References
 
+### Vector Buckets
 - [Supabase Vector Buckets Introduction](https://supabase.com/docs/guides/storage/vector/introduction)
 - [Creating Vector Buckets](https://supabase.com/docs/guides/storage/vector/creating-vector-buckets)
 - [Storing Vectors](https://supabase.com/docs/guides/storage/vector/storing-vectors)
@@ -715,5 +763,15 @@ With an average of **3 chunks per email**, that's roughly **3M chunks** in the v
 - [JavaScript SDK: Vector Buckets](https://supabase.com/docs/reference/javascript/vector-buckets)
 - [Blog: Introducing Vector Buckets](https://supabase.com/blog/vector-buckets)
 - [AWS S3 Vectors FDW](https://supabase.com/docs/guides/database/extensions/wrappers/s3_vectors)
+
+### Embedding (gte-small)
+- [Running AI Models in Edge Functions](https://supabase.com/docs/guides/functions/ai-models)
+- [Generate Text Embeddings (Supabase)](https://supabase.com/docs/guides/ai/quickstarts/generate-text-embeddings)
+- [Blog: AI Inference in Edge Functions](https://supabase.com/blog/ai-inference-now-available-in-supabase-edge-functions)
+- [Supabase/gte-small on Hugging Face](https://huggingface.co/Supabase/gte-small)
+- [Transformers.js (ONNX runtime for Node/Deno)](https://huggingface.co/docs/transformers.js)
+
+### Chunking & RAG
 - [Chunking Strategies for RAG (Pinecone)](https://www.pinecone.io/learn/chunking-strategies/)
 - [Chunking Strategies for RAG (Weaviate)](https://weaviate.io/blog/chunking-strategies-for-rag)
+- [Best Chunking Strategies for RAG 2025](https://www.firecrawl.dev/blog/best-chunking-strategies-rag-2025)
