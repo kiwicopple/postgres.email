@@ -141,6 +141,8 @@ function parseEmailContent(text: string | null): ParsedContent {
     }
   }
 
+  let inSqlBlock = false
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const quoteMatch = line.match(/^(>[\s>]*)/)
@@ -160,6 +162,7 @@ function parseEmailContent(text: string | null): ParsedContent {
         flushQuote()
         flushCode()
         inFencedCode = true
+        inSqlBlock = false
       } else {
         // Ending a fenced code block
         inFencedCode = false
@@ -176,17 +179,27 @@ function parseEmailContent(text: string | null): ParsedContent {
 
     if (quoteMatch) {
       flushCode()
+      inSqlBlock = false
       currentQuote.push(line.replace(/^[>\s]+/, ''))
-    } else if (isIndented(line) || isTableLine(line) || isSqlStatement(line)) {
+    } else if (isIndented(line) || isTableLine(line) || isSqlStatement(line) || (inSqlBlock && line.trim().length > 0)) {
       flushQuote()
+      // Start SQL block if this line is a SQL statement
+      if (isSqlStatement(line)) {
+        inSqlBlock = true
+      }
       // For table lines and SQL, keep original formatting (don't strip indent)
-      if (isTableLine(line) || isSqlStatement(line)) {
+      if (isTableLine(line) || isSqlStatement(line) || inSqlBlock) {
         currentCode.push(line)
       } else {
         currentCode.push(stripIndent(line))
       }
+      // End SQL block if line ends with semicolon
+      if (line.trim().endsWith(';')) {
+        inSqlBlock = false
+      }
     } else {
       flushQuote()
+      inSqlBlock = false
       if (line.trim() === '' && currentCode.length > 0) {
         let hasMoreCode = false
         for (let j = i + 1; j < lines.length; j++) {
@@ -732,6 +745,48 @@ describe('Email Formatting - Fixtures', () => {
       expect(parsed.codeBlocks.length).toBe(1)
       expect(parsed.codeBlocks[0]).toContain('SELECT COUNT(*) FROM users')
       expect(parsed.codeBlocks[0]).toContain('SELECT COUNT(*) FROM orders')
+    })
+
+    it('should detect multi-line SQL statements with line breaks', () => {
+      const body = `Example usage on a standby:
+
+SELECT promote_triggered, pause_state, wal_source,
+pg_size_pretty(pg_wal_lsn_diff(replay_end_lsn, last_replayed_end_lsn))
+FROM pg_stat_recovery;
+
+promote_triggered | pause_state | wal_source | pg_size_pretty`
+
+      const parsed = parseEmailContent(body)
+
+      // Should detect the multi-line SQL statement as a single code block
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+      const sqlBlock = parsed.codeBlocks.find(block => block.includes('SELECT'))
+      expect(sqlBlock).toBeDefined()
+      expect(sqlBlock).toContain('SELECT promote_triggered')
+      expect(sqlBlock).toContain('pg_size_pretty(pg_wal_lsn_diff')
+      expect(sqlBlock).toContain('FROM pg_stat_recovery')
+    })
+
+    it('should correctly format the pg_stat_recovery email example', () => {
+      const fixture = fixtures.find((f: any) => f.id === '<CABPTF7W+Nody-+P9y4PNk37-QWuLpfUrEonHuEhrX+Vx9Kq+Kw@mail.gmail.com>')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should have code blocks
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Find the SQL block with the multi-line SELECT statement
+      const sqlBlock = parsed.codeBlocks.find(block =>
+        block.includes('SELECT promote_triggered') &&
+        block.includes('FROM pg_stat_recovery')
+      )
+
+      expect(sqlBlock).toBeDefined()
+      // All three lines of the SQL statement should be in the same block
+      expect(sqlBlock).toContain('SELECT promote_triggered, pause_state, wal_source,')
+      expect(sqlBlock).toContain('pg_size_pretty(pg_wal_lsn_diff(replay_end_lsn, last_replayed_end_lsn))')
+      expect(sqlBlock).toContain('FROM pg_stat_recovery;')
     })
   })
 })

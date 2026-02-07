@@ -307,6 +307,8 @@ function FormattedBody({ text }: { text: string | null }) {
     return false
   }
 
+  let inSqlBlock = false
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const quoteMatch = line.match(/^(>[\s>]*)/)
@@ -322,6 +324,7 @@ function FormattedBody({ text }: { text: string | null }) {
         }
         flushCode()
         inFencedCode = true
+        inSqlBlock = false
       } else {
         // Ending a fenced code block
         inFencedCode = false
@@ -342,6 +345,7 @@ function FormattedBody({ text }: { text: string | null }) {
         currentTable = []
       }
       flushCode()
+      inSqlBlock = false
       const depth = (line.match(/>/g) || []).length
       if (currentQuote.length > 0 && depth !== quoteDepth) {
         flushQuote()
@@ -351,16 +355,26 @@ function FormattedBody({ text }: { text: string | null }) {
     } else if (isTableLine(line)) {
       flushQuote()
       flushCode()
+      inSqlBlock = false
       currentTable.push(line)
-    } else if (isIndented(line) || isSqlStatement(line)) {
+    } else if (isIndented(line) || isSqlStatement(line) || (inSqlBlock && line.trim().length > 0)) {
       flushQuote()
       if (currentTable.length > 0) {
         flushTable(currentTable)
         currentTable = []
       }
+      // Start SQL block if this line is a SQL statement
+      if (isSqlStatement(line)) {
+        inSqlBlock = true
+      }
       currentCode.push(isIndented(line) ? stripIndent(line) : line)
+      // End SQL block if line ends with semicolon
+      if (line.trim().endsWith(';')) {
+        inSqlBlock = false
+      }
     } else {
       flushQuote()
+      inSqlBlock = false
       // If we're in a table and hit a blank line, check if more table follows
       if (line.trim() === "" && currentTable.length > 0) {
         let hasMoreTable = false
