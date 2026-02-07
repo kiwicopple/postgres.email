@@ -25,12 +25,15 @@ to make search actually work.
 ┌──────────────────────────────────────────────────────────────────────┐
 │                      INGESTION PIPELINE                              │
 │                                                                      │
-│  messages table ──► chunk.js ──► embed-vectors.js ──► Vector Bucket  │
-│  (body_text)        (split)      (gte-small local)    (S3-backed)    │
+│  messages table ──► embed-vectors.js ──────────────► Vector Bucket   │
+│  (body_text)        chunk in memory + embed           (S3-backed)    │
+│                     (gte-small local)                                │
 │                                                                      │
 │  Each chunk stored with metadata:                                    │
 │  { message_id, mailbox_id, subject, from_email, ts, chunk_index,     │
 │    embedding_model }                                                 │
+│                                                                      │
+│  Progress tracked via messages.embedded_at column                    │
 └──────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -113,9 +116,11 @@ setup().catch(console.error)
 
 ---
 
-## Phase 2: Chunking Pipeline ✅
+## Phase 2: Chunking & Embedding Pipeline ✅
 
-**Goal:** Split email bodies into semantically meaningful chunks before embedding.
+**Goal:** Chunk email bodies and embed them into the vector bucket. Chunks are transient
+(in-memory only) — no intermediate tables in prod. Progress tracked via
+`messages.embedded_at`.
 
 ### 2.1 Chunking strategy: Hybrid paragraph + token-bounded
 
@@ -135,43 +140,20 @@ setup().catch(console.error)
 | Min chunk size | **50 tokens** | Skip trivially short chunks (e.g., "Thanks, John") |
 | Overlap | **50 tokens** (~12%) | Preserves context at boundaries |
 
-### 2.3 Create `scripts/chunk.js`
+### 2.3 Tracking embedded status
 
-New migration for `pipeline.message_chunks` table (in `pipeline` schema — not exposed
-via PostgREST, only accessed by scripts via direct pg connection):
+Migration adds `embedded_at` column to the existing `messages` table:
 
 ```sql
-create schema if not exists pipeline;
-
-create table pipeline.message_chunks (
-    id text primary key,                    -- {message_id}#chunk{index}
-    message_id text references public.messages(id),
-    mailbox_id text,
-    chunk_index integer,
-    chunk_text text,
-    token_count integer,
-    embedded_at timestamptz,                -- set after vector bucket upsert
-    created_at timestamptz default now()
-);
-
-create index on pipeline.message_chunks (message_id);
-create index on pipeline.message_chunks (mailbox_id);
-create index on pipeline.message_chunks (embedded_at) where embedded_at is null;
+alter table messages add column embedded_at timestamptz;
+create index on messages (embedded_at) where embedded_at is null;
 ```
 
-The `chunk.js` script:
-- Reads messages where `body_text IS NOT NULL` with no corresponding chunks
-- Applies the chunking algorithm
-- Inserts rows into `message_chunks`
-- Supports `--lists`, `--limit`, `--verbose` flags
+Pipeline fetches `WHERE embedded_at IS NULL AND body_text IS NOT NULL` — incremental
+and resumable. After successful upsert to the vector bucket, `embedded_at` is set.
+Messages with body text too short to chunk are also marked (they don't need re-processing).
 
----
-
-## Phase 3: Embedding Pipeline ✅
-
-**Goal:** Embed chunks and store them in the vector bucket.
-
-### 3.1 Embedding model: `gte-small`
+### 2.4 Embedding model: `gte-small`
 
 Already in use in the search Edge Function. The batch pipeline must use the **same model**
 so query and document embeddings are compatible.
@@ -180,44 +162,11 @@ so query and document embeddings are compatible.
 |---|---|---|---|---|
 | **`gte-small` (in use)** | **384** | **61.4** | **Free** | **No** |
 
-### 3.2 Create `scripts/embed-vectors.js`
+### 2.5 `scripts/embed-vectors.js`
 
-Uses `@xenova/transformers` (ONNX runtime for Node.js) to run `gte-small` locally:
+Single script that does everything: fetch → chunk → embed → store → mark done.
 
-```js
-const { pipeline } = require('@xenova/transformers')
-
-const extractor = await pipeline('feature-extraction', 'Supabase/gte-small')
-
-const BATCH_SIZE = 100
-const UPSERT_BATCH_SIZE = 250
-
-async function embedAndStore(chunks, extractor, vectorIndex) {
-  const texts = chunks.map(c => c.chunk_text)
-  const output = await extractor(texts, { pooling: 'mean', normalize: true })
-
-  const embeddings = output.tolist()
-  const vectors = chunks.map((chunk, i) => ({
-    key: chunk.id,
-    data: { float32: embeddings[i] },
-    metadata: {
-      message_id: chunk.message_id,
-      mailbox_id: chunk.mailbox_id,
-      subject: chunk.subject,
-      from_email: chunk.from_email,
-      ts: chunk.ts,
-      chunk_index: chunk.chunk_index,
-      embedding_model: 'gte-small',
-    },
-  }))
-
-  for (let i = 0; i < vectors.length; i += UPSERT_BATCH_SIZE) {
-    const batch = vectors.slice(i, i + UPSERT_BATCH_SIZE)
-    const { error } = await vectorIndex.putVectors({ vectors: batch })
-    if (error) throw error
-  }
-}
-```
+Uses `@xenova/transformers` (ONNX runtime for Node.js) to run `gte-small` locally.
 
 ```bash
 npm install @xenova/transformers
@@ -226,33 +175,25 @@ npm install @xenova/transformers
 Key decisions:
 - **Same model everywhere** — `gte-small` for both ingestion and query. Critical.
 - **Local inference** — no API calls, no rate limits, $0 cost for 3M chunks.
+- **Chunks are in-memory only** — no intermediate table in prod.
 - **Batch upserts** — 250 vectors per `putVectors` call (max 500).
 - **Upsert semantics** — same key overwrites, so re-runs are idempotent.
 - **Rich metadata** — enough to render a search result without a second DB query.
 
-### 3.3 Tracking embedded status
-
-The `embedded_at` column on `message_chunks` is set after successful upsert. Pipeline
-fetches `WHERE embedded_at IS NULL` — incremental and resumable.
-
-### 3.4 Model upgrades
+### 2.6 Model upgrades
 
 If search quality needs improvement later:
 - `Supabase/bge-small-en` (384-dim) — another Supabase ONNX model
 - Any Hugging Face model with ONNX weights via `@xenova/transformers`
 
-Changing models requires re-embedding all chunks and recreating the index. Store model
-name in chunk metadata to detect stale embeddings.
+Changing models requires re-embedding all messages (`UPDATE messages SET embedded_at = NULL`)
+and recreating the vector index. Model name stored in vector metadata to detect stale embeddings.
 
-### 3.5 npm scripts
+### 2.7 npm scripts
 
 ```json
-"chunk": "node -r dotenv/config scripts/chunk.js",
-"chunk:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/chunk.js",
 "embed:vectors": "node -r dotenv/config scripts/embed-vectors.js",
-"embed:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed-vectors.js",
-"pipeline:vectors": "npm run chunk && npm run embed:vectors",
-"pipeline:vectors:prod": "npm run chunk:prod && npm run embed:vectors:prod"
+"embed:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed-vectors.js"
 ```
 
 ---
@@ -397,11 +338,11 @@ Dropdown/selector to scope search:
 
 ### 6.1 Create `scripts/pipeline.js`
 
-Orchestrates: download → parse → chunk → embed. All steps incremental.
+Orchestrates: download → parse → embed. All steps incremental.
 
 ```json
-"pipeline": "npm run download && npm run parse && npm run chunk && npm run embed:vectors",
-"pipeline:prod": "npm run download -- --from $(date +%Y-%m) && npm run parse:prod && npm run chunk:prod && npm run embed:vectors:prod"
+"pipeline": "npm run download && npm run parse && npm run embed:vectors",
+"pipeline:prod": "npm run download -- --from $(date +%Y-%m) && npm run parse:prod && npm run embed:vectors:prod"
 ```
 
 ### 6.2 Cron / scheduled execution
@@ -451,13 +392,12 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 | File | Purpose |
 |---|---|
 | `scripts/lib/chunker.js` | Pure chunking logic — split, clean, overlap |
-| `scripts/chunk.js` | Chunk messages into `message_chunks` |
-| `scripts/embed-vectors.js` | Embed chunks with `gte-small` → vector bucket |
-| `supabase/migrations/20260207160000_message_chunks.sql` | `message_chunks` table |
+| `scripts/embed-vectors.js` | Fetch messages → chunk in memory → embed → store in vector bucket |
+| `supabase/migrations/20260207160000_message_chunks.sql` | Add `embedded_at` column to messages |
 | `tests/integration/scripts/chunker.test.js` | 25 tests for chunking logic |
-| `tests/integration/scripts/chunk.test.js` | 6 tests for chunk script |
-| `tests/integration/scripts/embed-vectors.test.js` | 6 tests for embed script |
-| `package.json` | Added `chunk`, `chunk:prod`, `embed:vectors`, `embed:vectors:prod` scripts |
+| `tests/integration/scripts/chunk.test.js` | 6 tests for chunkMessages |
+| `tests/integration/scripts/embed-vectors.test.js` | 6 tests for buildVectors |
+| `package.json` | Added `embed:vectors`, `embed:vectors:prod` scripts |
 
 ### Remaining
 
@@ -473,9 +413,9 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 
 ## Testing Plan
 
-1. ✅ **Chunking** — paragraph splitting, overlap, edge cases (empty body, all-quoted, very long, code-heavy) — 25 tests
-2. ✅ **Chunk script** — message chunking, quoted reply stripping, multi-message — 6 tests
-3. ✅ **Embed vectors** — vector structure, metadata, Float32Array conversion, model versioning — 6 tests
+1. ✅ **Chunking logic** — paragraph splitting, overlap, edge cases (empty body, all-quoted, very long, code-heavy) — 25 tests
+2. ✅ **Message chunking** — chunkMessages: multi-message, quoted reply stripping, short skipping — 6 tests
+3. ✅ **Vector building** — buildVectors: structure, metadata, Float32Array conversion, model versioning — 6 tests
 4. **Round-trip** — chunk → embed → query → verify original message appears
 5. **Search quality** — known queries, verify relevance
 6. **Edge Function** — metadata filtering, deduplication, error handling

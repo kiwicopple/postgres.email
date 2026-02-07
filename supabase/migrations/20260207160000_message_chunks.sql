@@ -1,19 +1,7 @@
--- Create pipeline schema for ingestion/processing infrastructure
--- Not exposed via PostgREST — only accessed by scripts via direct pg connection
+-- Track which messages have been embedded into the vector bucket.
+-- Set by embed-vectors.js after successful upsert to vector bucket.
+-- Pipeline queries: WHERE embedded_at IS NULL AND body_text IS NOT NULL
 
-create schema if not exists pipeline;
+alter table messages add column embedded_at timestamptz;
 
-create table pipeline.message_chunks (
-    id text primary key,                    -- {message_id}#chunk{index}
-    message_id text references public.messages(id),
-    mailbox_id text,
-    chunk_index integer,
-    chunk_text text,
-    token_count integer,
-    embedded_at timestamptz,                -- set after vector bucket upsert
-    created_at timestamptz default now()
-);
-
-create index on pipeline.message_chunks (message_id);
-create index on pipeline.message_chunks (mailbox_id);
-create index on pipeline.message_chunks (embedded_at) where embedded_at is null;
+create index on messages (embedded_at) where embedded_at is null;

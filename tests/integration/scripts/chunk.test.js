@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-const { chunkMessages } = require('../../../scripts/chunk.js')
+const { chunkMessages } = require('../../../scripts/embed-vectors.js')
 
 describe('chunkMessages', () => {
   it('chunks a message with enough body text', () => {
