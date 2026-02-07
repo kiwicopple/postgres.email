@@ -6,7 +6,7 @@ const {
   extractMailboxId,
   getMonthRange,
   parseYearMonth
-} = require('../lib/config.js')
+} = require('../../../scripts/lib/config.js')
 
 describe('parseArgs', () => {
   it('parses --lists argument', () => {

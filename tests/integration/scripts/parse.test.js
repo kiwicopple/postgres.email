@@ -3,10 +3,10 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 // Need to import with require since parse.js uses CommonJS
-const { parseMessage, parseMboxFile, convertToUTF8 } = require('../parse.js')
+const { parseMessage, parseMboxFile, convertToUTF8 } = require('../../../scripts/parse.js')
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const fixturesDir = path.join(__dirname, 'fixtures')
+const fixturesDir = path.join(__dirname, '../fixtures')
 
 // Create a simple logger for tests
 const testLogger = {

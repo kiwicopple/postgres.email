@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-const { cleanseText, generateEmbedding } = require('../embed.js')
+const { cleanseText, generateEmbedding } = require('../../../scripts/embed.js')
 
 describe('cleanseText', () => {
   it('removes quoted lines starting with >', () => {
