@@ -21,6 +21,12 @@ export type ListsDataError = ListsData["error"]
 // List detail response types
 export type ListDetail = Pick<Mailboxes, "id" | "message_count"> & {
   messages: MessageListMetadata[]
+  pagination?: {
+    limit: number
+    offset: number
+    total: number
+    hasMore: boolean
+  }
 }
 
 export type ListDetailData = {
