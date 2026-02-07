@@ -28,18 +28,36 @@ export default function ThreadItem({
   const children: { data: Thread; children: any }[] = tree.children
 
   useEffect(() => {
-    // Check if this message is the target of navigation (hash matches)
-    const hash = window.location.hash
-    const targetId = hash.replace('#', '')
-    const messageElementId = `message-${message.id}`
+    const checkHighlight = () => {
+      const hash = window.location.hash
+      const targetId = decodeURIComponent(hash.replace('#', ''))
+      const messageElementId = `message-${message.id}`
 
-    if (targetId === messageElementId) {
-      setIsHighlighted(true)
-      // Scroll to the element
-      document.getElementById(messageElementId)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      })
+      if (targetId === messageElementId) {
+        // Reset animation by clearing first, then setting after a tick
+        setIsHighlighted(false)
+        setTimeout(() => {
+          setIsHighlighted(true)
+        }, 10)
+
+        // Scroll to the element
+        setTimeout(() => {
+          document.getElementById(messageElementId)?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          })
+        }, 100)
+      } else {
+        setIsHighlighted(false)
+      }
+    }
+
+    // Check on mount and when hash changes
+    checkHighlight()
+    window.addEventListener('hashchange', checkHighlight)
+
+    return () => {
+      window.removeEventListener('hashchange', checkHighlight)
     }
   }, [message.id])
 
@@ -57,10 +75,10 @@ export default function ThreadItem({
       id={`message-${message.id}`}
       className={`w-full overflow-hidden border-l ${
         isRoot ? "" : "border-gray-900"
-      } ${isHighlighted ? 'message-highlight' : ''}`}
+      }`}
     >
       <div className={`w-full`}>
-        <details className={`relative overflow-hidden `} open={showDetails}>
+        <details className={`relative overflow-hidden`} open={showDetails}>
           <a
             href={`#message-${message.id}`}
             onClick={(e) => {
@@ -75,7 +93,7 @@ export default function ThreadItem({
           <summary
             className={`cursor-pointer list-none text-sm ${
               showDetails ? "" : colors + " border-l-12"
-            }`}
+            } ${isHighlighted ? 'message-highlight' : ''}`}
             onClick={(e) => {
               e.preventDefault()
               setShowDetails(!showDetails)
@@ -108,7 +126,7 @@ export default function ThreadItem({
           <div
             className={`text-gray-200 text-sm leading-relaxed ${
               isRoot ? "pl-3 pr-3" : "pl-6 pr-3"
-            } py-3`}
+            } py-3 ${isHighlighted ? 'message-highlight' : ''}`}
           >
             {formatted ? (
               <FormattedBody text={message.body_text} />
@@ -116,7 +134,7 @@ export default function ThreadItem({
               <PlainBody text={message.body_text} />
             )}
           </div>
-          <div className={`thread-footer py-2 border-b border-gray-700 ${isRoot ? "pl-3 pr-3" : "pl-6 pr-3"}`}>
+          <div className={`thread-footer py-2 border-b border-gray-700 ${isRoot ? "pl-3 pr-3" : "pl-6 pr-3"} ${isHighlighted ? 'message-highlight' : ''}`}>
             <a
               href={`https://www.postgresql.org/message-id/${encodeURIComponent(stripMessageIdBrackets(message.id))}`}
               target="_blank"
