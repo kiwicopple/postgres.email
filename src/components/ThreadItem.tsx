@@ -75,6 +75,7 @@ function FormattedBody({ text }: { text: string | null }) {
   let currentQuote: string[] = []
   let quoteDepth = 0
   let currentCode: string[] = []
+  let currentTable: string[] = []
 
   const flushQuote = () => {
     if (currentQuote.length > 0) {
@@ -111,6 +112,76 @@ function FormattedBody({ text }: { text: string | null }) {
     }
   }
 
+  const parseTable = (tableLines: string[]) => {
+    if (tableLines.length < 2) return null
+
+    // Remove empty lines and find separator line
+    const nonEmptyLines = tableLines.filter(l => l.trim().length > 0)
+    const separatorIndex = nonEmptyLines.findIndex(l => /^[-+]+$/.test(l.trim()))
+
+    if (separatorIndex === -1 || separatorIndex === 0) return null
+
+    // Header is before separator, rows are after
+    const headerLine = nonEmptyLines[separatorIndex - 1]
+    const rowLines = nonEmptyLines.slice(separatorIndex + 1)
+
+    // Parse header
+    const headers = headerLine
+      .split("|")
+      .map(h => h.trim())
+      .filter(h => h.length > 0)
+
+    // Parse rows
+    const rows = rowLines.map(line =>
+      line
+        .split("|")
+        .map(cell => cell.trim())
+        .filter(cell => cell.length > 0)
+    )
+
+    return { headers, rows }
+  }
+
+  const flushTable = (tableLines: string[]) => {
+    const table = parseTable(tableLines)
+    if (!table) {
+      // If we can't parse it as a table, treat it as code
+      currentCode.push(...tableLines)
+      flushCode()
+      return
+    }
+
+    elements.push(
+      <div key={`t-${elements.length}`} className="my-2 overflow-x-auto">
+        <table className="min-w-full border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-gray-600">
+              {table.headers.map((header, i) => (
+                <th
+                  key={i}
+                  className="px-3 py-2 text-left font-semibold text-gray-300 bg-gray-800"
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, i) => (
+              <tr key={i} className="border-b border-gray-700 hover:bg-gray-800/50">
+                {row.map((cell, j) => (
+                  <td key={j} className="px-3 py-2 text-gray-300">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
   // Matches lines indented with a tab, or 4+ spaces, or 2+ spaces followed
   // by content that looks code-like. We strip the leading whitespace.
   const indentPattern = /^(\t|    | {2,}(?=\S))/
@@ -132,6 +203,10 @@ function FormattedBody({ text }: { text: string | null }) {
     const quoteMatch = line.match(/^(>[\s>]*)/)
 
     if (quoteMatch) {
+      if (currentTable.length > 0) {
+        flushTable(currentTable)
+        currentTable = []
+      }
       flushCode()
       const depth = (line.match(/>/g) || []).length
       if (currentQuote.length > 0 && depth !== quoteDepth) {
@@ -139,17 +214,39 @@ function FormattedBody({ text }: { text: string | null }) {
       }
       quoteDepth = depth
       currentQuote.push(line.replace(/^[>\s]+/, ""))
-    } else if (isIndented(line) || isTableLine(line)) {
+    } else if (isTableLine(line)) {
       flushQuote()
-      // For table lines, keep original formatting (don't strip indent)
-      currentCode.push(isTableLine(line) ? line : stripIndent(line))
+      flushCode()
+      currentTable.push(line)
+    } else if (isIndented(line)) {
+      flushQuote()
+      if (currentTable.length > 0) {
+        flushTable(currentTable)
+        currentTable = []
+      }
+      currentCode.push(stripIndent(line))
     } else {
       flushQuote()
+      // If we're in a table and hit a blank line, check if more table follows
+      if (line.trim() === "" && currentTable.length > 0) {
+        let hasMoreTable = false
+        for (let j = i + 1; j < lines.length; j++) {
+          if (isTableLine(lines[j])) {
+            hasMoreTable = true
+            break
+          }
+          if (lines[j].trim() !== "") break
+        }
+        if (hasMoreTable) {
+          currentTable.push("")
+          continue
+        }
+      }
       // If we're in a code block and hit a blank line, check if more code follows
       if (line.trim() === "" && currentCode.length > 0) {
         let hasMoreCode = false
         for (let j = i + 1; j < lines.length; j++) {
-          if (isIndented(lines[j]) || isTableLine(lines[j])) {
+          if (isIndented(lines[j])) {
             hasMoreCode = true
             break
           }
@@ -159,6 +256,10 @@ function FormattedBody({ text }: { text: string | null }) {
           currentCode.push("")
           continue
         }
+      }
+      if (currentTable.length > 0) {
+        flushTable(currentTable)
+        currentTable = []
       }
       flushCode()
       if (line.trim() === "") {
@@ -174,6 +275,9 @@ function FormattedBody({ text }: { text: string | null }) {
     }
   }
   flushQuote()
+  if (currentTable.length > 0) {
+    flushTable(currentTable)
+  }
   flushCode()
 
   return <>{elements}</>
