@@ -5,7 +5,7 @@ export default function NotFound() {
     <div className="flex flex-col items-center justify-center h-full p-10 text-center">
       <h2 className="text-2xl font-bold text-gray-300 mb-4">Thread Not Found</h2>
       <p className="text-gray-500 mb-6">
-        The message or thread you're looking for doesn't exist.
+        The message or thread you&apos;re looking for doesn&apos;t exist.
       </p>
       <Link
         href="/lists"

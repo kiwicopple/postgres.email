@@ -5,7 +5,7 @@ export default function MessageNotFoundPage() {
     <div className="flex flex-col items-center justify-center h-full p-10 text-center">
       <h2 className="text-2xl font-bold text-gray-300 mb-4">Message Not Found</h2>
       <p className="text-gray-500 mb-6">
-        The message you're looking for doesn't exist in our archives.
+        The message you&apos;re looking for doesn&apos;t exist in our archives.
       </p>
       <Link
         href="/lists"
