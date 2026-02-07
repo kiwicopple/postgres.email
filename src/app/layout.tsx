@@ -4,6 +4,10 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "Postgres Email Lists",
   description: "PostgreSQL Email Lists, with a more readable interface",
+  icons: {
+    icon: '/icon.svg',
+    apple: '/logo.svg',
+  },
   openGraph: {
     siteName: "postgres-email",
     type: "website",

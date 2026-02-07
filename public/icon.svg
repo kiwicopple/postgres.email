@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Dark background -->
+  <rect width="32" height="32" fill="#111827"/>
+  <!-- Mail envelope -->
+  <rect x="6" y="8" width="20" height="16" rx="1" fill="none" stroke="#60A5FA" stroke-width="2.5"/>
+  <path d="M 6 8 L 16 17 L 26 8" fill="none" stroke="#60A5FA" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>
