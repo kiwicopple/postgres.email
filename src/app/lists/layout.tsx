@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { getLists } from "@/models/list"
 import QuickSearch from "@/components/QuickSearch"
 import MobileNav from "@/components/MobileNav"
@@ -26,8 +27,10 @@ export default async function ListsLayout({
         <MobileNav lists={lists} />
         <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
           <div className="flex flex-col flex-grow border-r pt-5 overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-4 text-lg text-blue-400">
-              postgres.email
+            <div className="flex items-center flex-shrink-0 px-4">
+              <Link href="/lists" className="text-lg text-blue-400 hover:text-blue-300 transition-colors">
+                postgres.email
+              </Link>
             </div>
             <div className="mt-5 flex-grow flex flex-col">
               <ListNav lists={lists} />
