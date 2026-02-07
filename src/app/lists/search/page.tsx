@@ -1,54 +1,110 @@
+import Link from "next/link"
 import { getSupabase } from "@/lib/supabase"
-import type { Database } from "@/lib/database.types"
+import { getLists } from "@/models/list"
+import { formatDate, stripMessageIdBrackets, getSnippet } from "@/lib/formatters"
+import SearchFilter from "@/components/SearchFilter"
 
 export const dynamic = "force-dynamic"
 
-type Message = Database["public"]["Tables"]["messages"]["Row"]
+interface SearchResult {
+  id: string
+  mailbox_id: string
+  subject: string | null
+  from_email: string | null
+  ts: string | null
+  body_text: string | null
+  score: number
+  matched_chunk: number
+}
 
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: { q?: string }
+  searchParams: { q?: string; list?: string }
 }) {
-  const query = searchParams.q
+  const query = searchParams.q?.trim()
+  const listFilter = searchParams.list || null
+
+  const { data: lists } = await getLists()
 
   if (!query) {
-    return <div className="p-10">Enter a search query</div>
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="mb-6">
+          <SearchFilter
+            lists={lists || []}
+            currentList={listFilter}
+            currentQuery=""
+          />
+        </div>
+        <p className="text-gray-500 text-sm">Enter a search query to find emails.</p>
+      </div>
+    )
   }
 
-  const { data: results, error } = await getSupabase().functions.invoke("search", {
-    body: { query },
-  })
+  const { data: results, error } = await getSupabase().functions.invoke(
+    "search",
+    {
+      body: {
+        query,
+        ...(listFilter ? { mailbox_id: listFilter } : {}),
+      },
+    }
+  )
 
   if (error) throw new Error(error.message)
+
+  const searchResults: SearchResult[] = results || []
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-200 mb-2">Search coming soon</h1>
-        <p className="text-gray-400">
-          Search functionality is currently in development. Below is the embedding for your query.
-        </p>
+        <SearchFilter
+          lists={lists || []}
+          currentList={listFilter}
+          currentQuery={query}
+        />
       </div>
 
-      {results && (
-        <div className="space-y-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-            <h2 className="text-lg font-semibold text-gray-200 mb-2">Query</h2>
-            <p className="text-gray-300">{results.query}</p>
-          </div>
+      <p className="text-gray-500 text-xs mb-4">
+        {searchResults.length === 0
+          ? "No results found"
+          : `${searchResults.length} result${searchResults.length === 1 ? "" : "s"}`}
+        {listFilter && (
+          <span>
+            {" "}in <span className="text-gray-400">{listFilter}</span>
+          </span>
+        )}
+      </p>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-            <h2 className="text-lg font-semibold text-gray-200 mb-2">
-              Embedding ({results.embedding?.length || 0} dimensions)
-            </h2>
-            <div className="bg-gray-950 rounded p-3 overflow-auto max-h-60">
-              <code className="text-xs text-gray-400 whitespace-pre-wrap break-all">
-                {JSON.stringify(results.embedding, null, 2)}
-              </code>
-            </div>
-          </div>
-        </div>
+      {searchResults.length > 0 && (
+        <ul className="space-y-1">
+          {searchResults.map((result) => (
+            <li key={result.id}>
+              <Link
+                href={`/lists/${result.mailbox_id}/${encodeURIComponent(stripMessageIdBrackets(result.id))}`}
+                className="block border-b border-gray-800 hover:bg-gray-800 p-3 -mx-3 rounded transition-colors"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm text-gray-200 truncate">
+                    {result.subject || "(no subject)"}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1 truncate">
+                    <span className="text-blue-400">{result.from_email}</span>
+                    {" in "}
+                    <span className="text-gray-400">{result.mailbox_id}</span>
+                    {result.ts && (
+                      <span className="ml-2">{formatDate(result.ts)}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1 line-clamp-2">
+                    {getSnippet(result.body_text)}
+                  </div>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

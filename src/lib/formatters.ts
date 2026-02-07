@@ -75,3 +75,23 @@ export function normalizeMessageId(messageId: string): string {
   }
   return `<${messageId}>`
 }
+
+/**
+ * Creates a clean text snippet from email body text.
+ * Strips quoted lines and signatures, collapses whitespace.
+ */
+export function getSnippet(bodyText: string | null, maxLength = 200): string {
+  if (!bodyText) return ""
+  let lines = bodyText.split("\n")
+  // Cut off at signature delimiter ("-- " or "--")
+  const sigIdx = lines.findIndex((line) => /^--\s?$/.test(line))
+  if (sigIdx !== -1) lines = lines.slice(0, sigIdx)
+  // Strip quoted lines
+  const cleaned = lines
+    .filter((line) => !line.startsWith(">"))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+  if (cleaned.length <= maxLength) return cleaned
+  return cleaned.slice(0, maxLength).trimEnd() + "..."
+}

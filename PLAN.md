@@ -219,23 +219,40 @@ curl -X POST https://<project>.supabase.co/functions/v1/search \
 
 ---
 
-## Phase 4: Frontend Updates
+## Phase 4: Frontend Updates ✅
 
 **Goal:** Replace the "Search coming soon" placeholder with real search results.
 
-### 4.1 Update search page
+### 4.1 `src/app/lists/search/page.tsx`
 
-Replace `src/app/lists/search/page.tsx`:
-- Render ranked message results (subject, author, date, snippet)
-- Link each result to the thread view
-- Add optional `mailbox_id` filter from query string
+Server component that:
+- Reads `q` and `list` from URL search params
+- Calls the search Edge Function with query and optional `mailbox_id`
+- Renders ranked results: subject, sender (blue), list name, date, body snippet
+- Each result links to the thread view
+- Shows result count and active list filter
 
-### 4.2 Add mailing list filter
+### 4.2 `src/components/SearchFilter.tsx`
 
-Dropdown/selector to scope search:
+Client component with:
+- Search input (pre-filled with current query)
+- List filter dropdown (populated from `mailboxes` table)
+- Form submission updates URL params
+
 ```
 /lists/search?q=toast+table&list=pgsql-hackers
 ```
+
+### 4.3 `src/lib/formatters.ts`
+
+Added `getSnippet()` — creates clean text snippets from email bodies by stripping
+quoted lines and signatures, collapsing whitespace, and truncating with ellipsis.
+
+### 4.4 Dependencies
+
+Installed:
+- `@xenova/transformers` — ONNX runtime for local `gte-small` inference
+- `@supabase/supabase-js@latest` — vector storage API support
 
 ---
 
@@ -303,20 +320,22 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 | `scripts/setup-vector-bucket.js` | One-time setup: create bucket and index |
 | `supabase/migrations/20260207160000_embedded_at.sql` | Add `embedded_at` column to messages |
 | `supabase/functions/search/index.ts` | Vector bucket query, deduplication, message fetch, ranking |
+| `src/app/lists/search/page.tsx` | Search results page with ranked results and list filter |
+| `src/components/SearchFilter.tsx` | Client component: search input + list filter dropdown |
+| `src/lib/formatters.ts` | Added `getSnippet()` for clean body text snippets |
 | `tests/integration/scripts/chunker.test.js` | 25 tests for chunking logic |
 | `tests/integration/scripts/chunk.test.js` | 6 tests for chunkMessages |
 | `tests/integration/scripts/embed-vectors.test.js` | 6 tests for buildVectors |
 | `tests/integration/scripts/setup-vector-bucket.test.js` | 11 tests for bucket/index setup |
 | `tests/integration/functions/search.test.ts` | 12 tests for deduplication & ranking |
-| `package.json` | Added `embed:vectors`, `embed:vectors:prod`, `setup:vectors`, `setup:vectors:prod` |
+| `tests/integration/site/search.test.ts` | 10 tests for getSnippet |
+| `package.json` | Added scripts, `@xenova/transformers`, updated `@supabase/supabase-js` |
 
 ### Remaining
 
 | File | Purpose |
 |---|---|
 | `scripts/pipeline.js` | Orchestrate full ingestion pipeline |
-| `src/app/lists/search/page.tsx` | Replace placeholder with search results UI |
-| `package.json` | Add `@xenova/transformers`, update `@supabase/supabase-js` |
 
 ---
 
@@ -327,8 +346,9 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 3. ✅ **Vector building** — buildVectors: structure, metadata, Float32Array conversion, model versioning — 6 tests
 4. ✅ **Vector bucket setup** — bucket/index creation, idempotency, error handling — 11 tests
 5. ✅ **Search logic** — deduplication by message_id, ranking, score merging, edge cases — 12 tests
-6. **Round-trip** — chunk → embed → query → verify original message appears
-7. **Search quality** — known queries, verify relevance
+6. ✅ **Search snippets** — getSnippet: quote stripping, signature removal, truncation, edge cases — 10 tests
+7. **Round-trip** — chunk → embed → query → verify original message appears
+8. **Search quality** — known queries, verify relevance
 
 ---
 
