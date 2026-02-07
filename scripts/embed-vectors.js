@@ -19,7 +19,7 @@ async function fetchUnembeddedChunks(pool, lists, limit) {
   const query = `
     SELECT mc.id, mc.message_id, mc.mailbox_id, mc.chunk_index, mc.chunk_text,
            m.subject, m.from_email, m.ts
-    FROM message_chunks mc
+    FROM pipeline.message_chunks mc
     JOIN messages m ON m.id = mc.message_id
     WHERE mc.embedded_at IS NULL
       AND mc.mailbox_id = ANY($1)
@@ -38,7 +38,7 @@ async function fetchUnembeddedChunks(pool, lists, limit) {
 async function markChunksEmbedded(pool, chunkIds) {
   if (chunkIds.length === 0) return
   await pool.query(
-    `UPDATE message_chunks SET embedded_at = now() WHERE id = ANY($1)`,
+    `UPDATE pipeline.message_chunks SET embedded_at = now() WHERE id = ANY($1)`,
     [chunkIds]
   )
 }

@@ -21,7 +21,7 @@ async function fetchUnchunkedMessages(pool, lists, limit) {
     WHERE m.body_text IS NOT NULL
       AND m.mailbox_id = ANY($1)
       AND NOT EXISTS (
-        SELECT 1 FROM message_chunks mc WHERE mc.message_id = m.id
+        SELECT 1 FROM pipeline.message_chunks mc WHERE mc.message_id = m.id
       )
     ORDER BY m.ts DESC
     ${limit ? `LIMIT ${parseInt(limit, 10)}` : ''}
@@ -45,7 +45,7 @@ async function insertChunksBatch(pool, chunks) {
 
     for (const chunk of chunks) {
       await client.query(
-        `INSERT INTO message_chunks (id, message_id, mailbox_id, chunk_index, chunk_text, token_count)
+        `INSERT INTO pipeline.message_chunks (id, message_id, mailbox_id, chunk_index, chunk_text, token_count)
          VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (id) DO UPDATE SET
            chunk_text = EXCLUDED.chunk_text,

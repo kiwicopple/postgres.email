@@ -137,12 +137,15 @@ setup().catch(console.error)
 
 ### 2.3 Create `scripts/chunk.js`
 
-New migration for `message_chunks` table:
+New migration for `pipeline.message_chunks` table (in `pipeline` schema — not exposed
+via PostgREST, only accessed by scripts via direct pg connection):
 
 ```sql
-create table message_chunks (
+create schema if not exists pipeline;
+
+create table pipeline.message_chunks (
     id text primary key,                    -- {message_id}#chunk{index}
-    message_id text references messages(id),
+    message_id text references public.messages(id),
     mailbox_id text,
     chunk_index integer,
     chunk_text text,
@@ -151,14 +154,9 @@ create table message_chunks (
     created_at timestamptz default now()
 );
 
-create index on message_chunks (message_id);
-create index on message_chunks (mailbox_id);
-create index on message_chunks (embedded_at) where embedded_at is null;
-
-alter table message_chunks enable row level security;
-
-create policy "Public read access" on message_chunks
-  for select using (true);
+create index on pipeline.message_chunks (message_id);
+create index on pipeline.message_chunks (mailbox_id);
+create index on pipeline.message_chunks (embedded_at) where embedded_at is null;
 ```
 
 The `chunk.js` script:
