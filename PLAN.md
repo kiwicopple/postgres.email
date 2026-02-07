@@ -59,7 +59,7 @@ to make search actually work.
 
 ---
 
-## Phase 1: Vector Bucket Infrastructure Setup
+## Phase 1: Vector Bucket Infrastructure Setup ✅
 
 **Goal:** Create the vector bucket and index, update SDK.
 
@@ -71,38 +71,13 @@ The vector storage API requires `@supabase/storage-js` v2.76+:
 npm install @supabase/supabase-js@latest
 ```
 
-### 1.2 Create vector bucket and index
+### 1.2 `scripts/setup-vector-bucket.js`
 
-Create `scripts/setup-vector-bucket.js`:
+One-time setup script. Creates bucket and index, safe to re-run (skips if already exists).
 
-```js
-const { createClient } = require('@supabase/supabase-js')
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-)
-
-async function setup() {
-  const { error: bucketError } = await supabase.storage.vectors.createBucket('email-embeddings')
-  if (bucketError && !bucketError.message.includes('already exists')) {
-    throw bucketError
-  }
-
-  const bucket = supabase.storage.vectors.from('email-embeddings')
-  const { error: indexError } = await bucket.createIndex({
-    indexName: 'email-chunks',
-    dimension: 384,
-    distanceMetric: 'cosine',
-  })
-  if (indexError && !indexError.message.includes('already exists')) {
-    throw indexError
-  }
-
-  console.log('Vector bucket and index created successfully')
-}
-
-setup().catch(console.error)
+```bash
+npm run setup:vectors       # local
+npm run setup:vectors:prod  # production
 ```
 
 ### 1.3 Configuration
@@ -198,132 +173,64 @@ and recreating the vector index. Model name stored in vector metadata to detect 
 
 ---
 
-## Phase 4: Update Search Edge Function
+## Phase 3: Update Search Edge Function ✅
 
 **Goal:** Extend `supabase/functions/search/index.ts` to query the vector bucket and
 return real results. It already generates the embedding — just needs to use it.
 
-### 4.1 Updated `supabase/functions/search/index.ts`
+### 3.1 `supabase/functions/search/index.ts`
 
-```ts
-/// <reference lib="deno.ns" />
+The Edge Function now:
+1. Embeds the user query with `gte-small` (on-device in the edge runtime)
+2. Queries the vector bucket with optional `mailbox_id` metadata filter
+3. Deduplicates results by `message_id` (multiple chunks may match from same email)
+4. Fetches full messages from Postgres
+5. Merges scores with messages and returns ranked results
 
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { corsHeaders } from "../_shared/cors.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-
-const model = new Supabase.ai.Session("gte-small")
-
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-)
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders })
-  }
-
-  try {
-    const { query, mailbox_id, limit = 20 } = await req.json()
-
-    if (!query || typeof query !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Query parameter is required and must be a string" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      )
-    }
-
-    // 1. Embed the user query locally with gte-small
-    const queryVector = await model.run(query, {
-      mean_pool: true,
-      normalize: true,
-    })
-
-    // 2. Query vector bucket with optional metadata filter
-    const index = supabase.storage.vectors
-      .from('email-embeddings')
-      .index('email-chunks')
-
-    const filter: Record<string, string> = {}
-    if (mailbox_id) filter.mailbox_id = mailbox_id
-
-    const { data: vectorResults, error } = await index.queryVectors({
-      queryVector: { float32: queryVector },
-      topK: limit,
-      ...(Object.keys(filter).length > 0 ? { filter } : {}),
-    })
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      })
-    }
-
-    // 3. Deduplicate by message_id (multiple chunks may match from same email)
-    const seen = new Set<string>()
-    const uniqueResults = []
-    for (const result of vectorResults ?? []) {
-      const msgId = result.metadata?.message_id
-      if (msgId && !seen.has(msgId)) {
-        seen.add(msgId)
-        uniqueResults.push(result)
-      }
-    }
-
-    // 4. Fetch full messages from Postgres
-    const messageIds = uniqueResults.map(r => r.metadata?.message_id).filter(Boolean)
-    const { data: messages } = await supabase
-      .from('messages')
-      .select('id, mailbox_id, subject, from_email, ts, body_text')
-      .in('id', messageIds)
-
-    // 5. Merge scores with messages and preserve ranking order
-    const messageMap = new Map((messages ?? []).map(m => [m.id, m]))
-    const ranked = uniqueResults
-      .map(r => ({
-        ...messageMap.get(r.metadata?.message_id),
-        score: r.distance,
-        matched_chunk: r.metadata?.chunk_index,
-      }))
-      .filter(r => r.id)
-
-    return new Response(JSON.stringify(ranked), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    })
-  }
-})
-```
-
-### 4.2 Key features
+### 3.2 Key features
 
 - **Metadata filtering** — scope search to a mailing list via `mailbox_id`
-- **Deduplication** — multiple chunks from the same email → return email once
+- **Deduplication** — multiple chunks from the same email → return email once (keeps best score)
 - **Full message fetch** — pull full message from Postgres for display
 - **Configurable limit** — default 20 results
 
+### 3.3 Request / response
+
+```bash
+# Request
+curl -X POST https://<project>.supabase.co/functions/v1/search \
+  -H "Authorization: Bearer <anon-key>" \
+  -d '{"query": "WAL improvements", "mailbox_id": "pgsql-hackers", "limit": 10}'
+
+# Response
+[
+  {
+    "id": "<msg-id>",
+    "mailbox_id": "pgsql-hackers",
+    "subject": "WAL improvements proposal",
+    "from_email": "dev@example.org",
+    "ts": "2026-01-15T10:00:00Z",
+    "body_text": "...",
+    "score": 0.95,
+    "matched_chunk": 0
+  }
+]
+```
+
 ---
 
-## Phase 5: Frontend Updates
+## Phase 4: Frontend Updates
 
 **Goal:** Replace the "Search coming soon" placeholder with real search results.
 
-### 5.1 Update search page
+### 4.1 Update search page
 
 Replace `src/app/lists/search/page.tsx`:
 - Render ranked message results (subject, author, date, snippet)
 - Link each result to the thread view
 - Add optional `mailbox_id` filter from query string
 
-### 5.2 Add mailing list filter
+### 4.2 Add mailing list filter
 
 Dropdown/selector to scope search:
 ```
@@ -332,11 +239,11 @@ Dropdown/selector to scope search:
 
 ---
 
-## Phase 6: Full Pipeline Orchestration
+## Phase 5: Full Pipeline Orchestration
 
 **Goal:** Single command to run the entire ingestion pipeline.
 
-### 6.1 Create `scripts/pipeline.js`
+### 5.1 Create `scripts/pipeline.js`
 
 Orchestrates: download → parse → embed. All steps incremental.
 
@@ -345,7 +252,7 @@ Orchestrates: download → parse → embed. All steps incremental.
 "pipeline:prod": "npm run download -- --from $(date +%Y-%m) && npm run parse:prod && npm run embed:vectors:prod"
 ```
 
-### 6.2 Cron / scheduled execution
+### 5.2 Cron / scheduled execution
 
 Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily or weekly.
 
@@ -393,19 +300,21 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 |---|---|
 | `scripts/lib/chunker.js` | Pure chunking logic — split, clean, overlap |
 | `scripts/embed-vectors.js` | Fetch messages → chunk in memory → embed → store in vector bucket |
-| `supabase/migrations/20260207160000_message_chunks.sql` | Add `embedded_at` column to messages |
+| `scripts/setup-vector-bucket.js` | One-time setup: create bucket and index |
+| `supabase/migrations/20260207160000_embedded_at.sql` | Add `embedded_at` column to messages |
+| `supabase/functions/search/index.ts` | Vector bucket query, deduplication, message fetch, ranking |
 | `tests/integration/scripts/chunker.test.js` | 25 tests for chunking logic |
 | `tests/integration/scripts/chunk.test.js` | 6 tests for chunkMessages |
 | `tests/integration/scripts/embed-vectors.test.js` | 6 tests for buildVectors |
-| `package.json` | Added `embed:vectors`, `embed:vectors:prod` scripts |
+| `tests/integration/scripts/setup-vector-bucket.test.js` | 11 tests for bucket/index setup |
+| `tests/integration/functions/search.test.ts` | 12 tests for deduplication & ranking |
+| `package.json` | Added `embed:vectors`, `embed:vectors:prod`, `setup:vectors`, `setup:vectors:prod` |
 
 ### Remaining
 
 | File | Purpose |
 |---|---|
-| `scripts/setup-vector-bucket.js` | One-time setup: create bucket and index |
 | `scripts/pipeline.js` | Orchestrate full ingestion pipeline |
-| `supabase/functions/search/index.ts` | Add vector bucket query, deduplication, message fetch |
 | `src/app/lists/search/page.tsx` | Replace placeholder with search results UI |
 | `package.json` | Add `@xenova/transformers`, update `@supabase/supabase-js` |
 
@@ -416,16 +325,12 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 1. ✅ **Chunking logic** — paragraph splitting, overlap, edge cases (empty body, all-quoted, very long, code-heavy) — 25 tests
 2. ✅ **Message chunking** — chunkMessages: multi-message, quoted reply stripping, short skipping — 6 tests
 3. ✅ **Vector building** — buildVectors: structure, metadata, Float32Array conversion, model versioning — 6 tests
-4. **Round-trip** — chunk → embed → query → verify original message appears
-5. **Search quality** — known queries, verify relevance
-6. **Edge Function** — metadata filtering, deduplication, error handling
+4. ✅ **Vector bucket setup** — bucket/index creation, idempotency, error handling — 11 tests
+5. ✅ **Search logic** — deduplication by message_id, ranking, score merging, edge cases — 12 tests
+6. **Round-trip** — chunk → embed → query → verify original message appears
+7. **Search quality** — known queries, verify relevance
 
 ---
-
-## Open Questions
-
-1. **Embedding model versioning** — store model name in chunk metadata to detect stale
-   embeddings after model upgrades.
 
 ---
 

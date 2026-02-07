@@ -11,6 +11,8 @@
     "parse:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/parse.js",
     "embed:vectors": "node -r dotenv/config scripts/embed-vectors.js",
     "embed:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed-vectors.js",
+    "setup:vectors": "node -r dotenv/config scripts/setup-vector-bucket.js",
+    "setup:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/setup-vector-bucket.js",
     "fetch-fixture": "node -r dotenv/config scripts/fetch-email-fixture.js",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -79,16 +79,53 @@ pnpm parse:prod
 
 ### embed.js
 
-Generates embeddings for email messages using OpenAI.
+> **Removed.** Replaced by `embed-vectors.js` (see below).
+
+### embed-vectors.js
+
+Chunks email bodies in memory and embeds them into a Supabase Vector Bucket using `gte-small` (via `@xenova/transformers`). Progress is tracked via `messages.embedded_at`.
 
 ```bash
-pnpm embed
+npm run embed:vectors
 ```
 
 Production:
 ```bash
-pnpm embed:prod
+npm run embed:vectors:prod
 ```
+
+Flags:
+- `--lists pgsql-hackers,pgsql-general` — process specific lists
+- `--limit 100` — cap the number of messages to process
+- `--dry-run` — output vectors as JSON to stdout, skip bucket writes and DB updates
+- `--verbose` — verbose logging
+
+```bash
+# Test the pipeline without writing anything
+npm run embed:vectors -- --dry-run --limit 5
+
+# Pipe to jq for inspection
+npm run embed:vectors -- --dry-run --limit 1 | jq '.metadata'
+```
+
+### setup-vector-bucket.js
+
+One-time setup: creates the `email-embeddings` vector bucket and `email-chunks` index in Supabase. Safe to re-run (skips if already exists).
+
+```bash
+npm run setup:vectors
+```
+
+Production:
+```bash
+npm run setup:vectors:prod
+```
+
+### lib/chunker.js
+
+Pure chunking logic used by `embed-vectors.js`. Splits email bodies into token-bounded, paragraph-aware chunks with overlap. Strips quoted replies and signatures.
+
+No CLI — imported as a library.
 
 ## Environment Variables
 
@@ -97,10 +134,10 @@ Required environment variables (in `.env`):
 ```env
 # Database connection
 DATABASE_URL=postgresql://...
-SUPABASE_DB_URL=postgresql://...
 
-# For embeddings
-OPENAI_API_KEY=sk-...
+# Supabase (for vector bucket and setup scripts)
+SUPABASE_URL=https://...
+SUPABASE_SECRET_KEY=...
 ```
 
 ## Adding New Scripts
