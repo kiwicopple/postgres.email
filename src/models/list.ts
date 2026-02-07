@@ -21,6 +21,7 @@ export async function getLists(): Promise<ListsData> {
   const { data, error } = await getSupabase()
     .from("mailboxes")
     .select("id, message_count")
+    .order("id", { ascending: true })
 
   return {
     data: data || null,
