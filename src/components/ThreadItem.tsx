@@ -3,6 +3,7 @@
 import type { TreeItem } from "performant-array-to-tree"
 import type { Thread } from "@/models/thread"
 import { useState } from "react"
+import { useFormatting } from "./FormattingProvider"
 
 function formatDate(ts: string | null): string {
   if (!ts) return ""
@@ -283,6 +284,11 @@ function FormattedBody({ text }: { text: string | null }) {
   return <>{elements}</>
 }
 
+function PlainBody({ text }: { text: string | null }) {
+  if (!text) return null
+  return <pre className="whitespace-pre-wrap font-mono text-sm">{text}</pre>
+}
+
 export default function ThreadItem({
   tree,
   level,
@@ -293,6 +299,7 @@ export default function ThreadItem({
   markdown: boolean
 }) {
   const [showDetails, setShowDetails] = useState(true)
+  const { formatted } = useFormatting()
   const message: Thread = tree.data
   const children: { data: Thread; children: any }[] = tree.children
 
@@ -363,7 +370,11 @@ export default function ThreadItem({
               isRoot ? "pl-3 pr-3" : "pl-6 pr-3"
             } py-3`}
           >
-            <FormattedBody text={message.body_text} />
+            {formatted ? (
+              <FormattedBody text={message.body_text} />
+            ) : (
+              <PlainBody text={message.body_text} />
+            )}
           </div>
           <div className="thread-footer py-2 border-b border-gray-700" />
 

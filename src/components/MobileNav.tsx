@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import clsx from "clsx"
+import FormattingToggle from "./FormattingToggle"
 
 type ListItem = {
   id: string
@@ -55,6 +56,9 @@ export default function MobileNav({ lists }: { lists: ListItem[] }) {
               </Link>
             )
           })}
+          <div className="border-t border-gray-800 pt-2 mt-2">
+            <FormattingToggle />
+          </div>
         </nav>
       )}
     </div>
