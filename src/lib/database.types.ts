@@ -56,7 +56,6 @@ export type Database = {
           body_text: string | null
           cc_addresses: Json | null
           embedded_files: Json | null
-          embedding: string | null
           from_addresses: Json | null
           from_email: string | null
           headers: Json | null
@@ -75,7 +74,6 @@ export type Database = {
           body_text?: string | null
           cc_addresses?: Json | null
           embedded_files?: Json | null
-          embedding?: string | null
           from_addresses?: Json | null
           from_email?: string | null
           headers?: Json | null
@@ -94,7 +92,6 @@ export type Database = {
           body_text?: string | null
           cc_addresses?: Json | null
           embedded_files?: Json | null
-          embedding?: string | null
           from_addresses?: Json | null
           from_email?: string | null
           headers?: Json | null
@@ -143,38 +140,7 @@ export type Database = {
       }
     }
     Functions: {
-      search: {
-        Args: {
-          match_count: number
-          match_threshold: number
-          query_embedding: string
-        }
-        Returns: {
-          attachments: Json | null
-          bcc_addresses: Json | null
-          body_text: string | null
-          cc_addresses: Json | null
-          embedded_files: Json | null
-          embedding: string | null
-          from_addresses: Json | null
-          from_email: string | null
-          headers: Json | null
-          id: string
-          in_reply_to: string | null
-          mailbox_id: string | null
-          seq_num: number | null
-          size: number | null
-          subject: string | null
-          to_addresses: Json | null
-          ts: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "messages"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
@@ -310,3 +276,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

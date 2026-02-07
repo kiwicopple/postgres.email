@@ -1,10 +1,10 @@
 "use client"
 
-import Link from "next/link"
 import { usePathname } from "next/navigation"
-import type { ListDetailDataSuccess } from "@/models/list"
-
-type Message = NonNullable<ListDetailDataSuccess>["messages"][0]
+import { useState } from "react"
+import type { ListDetailDataSuccess, MessageListMetadata } from "@/types"
+import MessageThread from "@/components/MessageThread"
+import { stripMessageIdBrackets } from "@/lib/formatters"
 
 export default function MessageList({
   list,
@@ -17,6 +17,31 @@ export default function MessageList({
 }) {
   const pathname = usePathname()
   const threadSelected = pathname !== `/lists/${listId}`
+
+  const [messages, setMessages] = useState<MessageListMetadata[]>(list.messages)
+  const [pagination, setPagination] = useState(list.pagination)
+  const [loading, setLoading] = useState(false)
+
+  const loadMore = async () => {
+    if (!pagination || loading) return
+
+    setLoading(true)
+    try {
+      const response = await fetch(
+        `/api/lists/${listId}/messages?limit=${pagination.limit}&offset=${pagination.offset + pagination.limit}`
+      )
+      const data = await response.json()
+
+      if (data.messages) {
+        setMessages(prevMessages => [...prevMessages, ...data.messages])
+        setPagination(data.pagination)
+      }
+    } catch (error) {
+      console.error("Failed to load more messages:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div>
@@ -34,59 +59,30 @@ export default function MessageList({
         </div>
         <nav className="z-50 flex flex-col flex-grow border-r overflow-y-auto">
           <ul>
-            {list.messages.map((message: Message) => (
+            {messages.map((message) => (
               <MessageThread
                 key={message.id}
                 message={message}
-                href={`/lists/${list.id}/${message.id}`}
+                href={`/lists/${list.id}/${encodeURIComponent(stripMessageIdBrackets(message.id))}`}
               />
             ))}
           </ul>
+          {pagination?.hasMore && (
+            <div className="p-4 border-t">
+              <button
+                onClick={loadMore}
+                disabled={loading}
+                className="w-full px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {loading ? "Loading..." : "Load More"}
+              </button>
+            </div>
+          )}
         </nav>
       </div>
       <div className="md:pl-80 flex flex-col flex-1 h-full">
         {children}
       </div>
     </div>
-  )
-}
-
-function MessageThread({
-  message,
-  href,
-}: {
-  message: Message
-  href: string
-}) {
-  const from = message.from_addresses!
-  // @ts-ignore
-  const sender: { name?: string; address: string } = from[0]
-  const timestamp = new Date(message.ts!).toLocaleDateString()
-
-  const pathname = usePathname()
-  const isActive = decodeURI(pathname) === href
-  const activeClass = "text-red"
-  const inactiveClass = "text-gray-500"
-
-  return (
-    <Link
-      href={href}
-      className={isActive ? activeClass : inactiveClass}
-    >
-      <li
-        key={message.id}
-        className="flex flex-col p-2 py-4 border-b hover:bg-gray-800 text-sm"
-      >
-        <div className="flex flex-row">
-          <span className="font-bold flex-grow whitespace-nowrap text-ellipsis overflow-hidden">
-            {sender.name || sender.address || String(sender)}
-          </span>
-          <span className="text-xs">{timestamp}</span>
-        </div>
-        <div className="whitespace-nowrap text-ellipsis overflow-hidden">
-          {message.subject}
-        </div>
-      </li>
-    </Link>
   )
 }

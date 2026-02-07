@@ -23,43 +23,33 @@ export default async function SearchPage({
   if (error) throw new Error(error.message)
 
   return (
-    <div>
-      <div>
-        <div className="md:hidden bg-blue-900 shadow-md p-4 border-b sticky top-0 space-y-2 z-40">
-          <div className="flex flex-row">
-            <p className="flex whitespace-nowrap text-ellipsis overflow-hidden order-last">
-              Search: {query}
-            </p>
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-200 mb-2">Search coming soon</h1>
+        <p className="text-gray-400">
+          Search functionality is currently in development. Below is the embedding for your query.
+        </p>
+      </div>
+
+      {results && (
+        <div className="space-y-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <h2 className="text-lg font-semibold text-gray-200 mb-2">Query</h2>
+            <p className="text-gray-300">{results.query}</p>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <h2 className="text-lg font-semibold text-gray-200 mb-2">
+              Embedding ({results.embedding?.length || 0} dimensions)
+            </h2>
+            <div className="bg-gray-950 rounded p-3 overflow-auto max-h-60">
+              <code className="text-xs text-gray-400 whitespace-pre-wrap break-all">
+                {JSON.stringify(results.embedding, null, 2)}
+              </code>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col flex-1 h-full">
-        <ul>
-          {results &&
-            results.map((message: any) => (
-              <div key={message.id} className={`w-full`}>
-                <div className={`relative overflow-hidden `}>
-                  <div className={`cursor-pointer list-none text-sm`}>
-                    <div className={`border-b py-2 "px-3 border-gray-900"`}>
-                      <span className="text-blue-400 font-bold pr-4">
-                        {`${message.from_email}`}
-                      </span>
-                      <span className="text-gray-500" title={message.ts || ""}>
-                        {message.ts}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={`prose text-gray-200 text-sm`}>
-                    {message.body_text}
-                  </div>
-                  <div className="thread-footer py-4 border-b border-gray-700">
-                    {/* Not yet used */}
-                  </div>
-                </div>
-              </div>
-            ))}
-        </ul>
-      </div>
+      )}
     </div>
   )
 }

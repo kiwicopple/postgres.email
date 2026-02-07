@@ -1,30 +1,45 @@
 import { getSupabase } from "@/lib/supabase"
-import type { Database } from "@/lib/database.types"
+import type {
+  MessageListMetadata,
+  ListsData,
+  ListDetailData,
+  ListDetail
+} from "@/types"
 
-type messages = Database["public"]["Tables"]["messages"]["Row"]
+export type {
+  MessageListMetadata,
+  ListsData,
+  ListsDataSuccess,
+  ListsDataError,
+  ListDetail,
+  ListDetailData,
+  ListDetailDataSuccess,
+  ListDetailDataError
+} from "@/types"
 
-// Metadata-only type for list view (excludes body_text for performance)
-export type MessageListMetadata = Pick<
-  messages,
-  "id" | "subject" | "ts" | "from_email" | "from_addresses" | "in_reply_to"
->
+export async function getLists(): Promise<ListsData> {
+  const { data, error } = await getSupabase()
+    .from("mailboxes")
+    .select("id, message_count")
+    .order("id", { ascending: true })
 
-export type ListsData = Awaited<ReturnType<typeof getLists>>
-export type ListsDataSuccess = ListsData["data"]
-export type ListsDataError = ListsData["error"]
-
-export async function getLists() {
-  return await getSupabase().from("mailboxes").select(`id, message_count`)
+  return {
+    data: data || null,
+    error: error as Error | null
+  }
 }
 
-export type ListDetailData = Awaited<ReturnType<typeof getListDetail>>
-export type ListDetailDataSuccess = NonNullable<ListDetailData["data"]> & {
-  messages: MessageListMetadata[]
-}
-export type ListDetailDataError = ListDetailData["error"]
+export async function getListDetail(
+  id: string,
+  options?: {
+    limit?: number
+    offset?: number
+  }
+): Promise<ListDetailData> {
+  const limit = options?.limit
+  const offset = options?.offset ?? 0
 
-export async function getListDetail(id: string) {
-  return await getSupabase()
+  let query = getSupabase()
     .from("mailboxes")
     .select(`
       id,
@@ -41,5 +56,37 @@ export async function getListDetail(id: string) {
     .eq("id", id)
     .is("messages.in_reply_to", null)
     .order("ts", { foreignTable: "messages", ascending: false })
-    .single()
+
+  // Apply pagination to the nested messages if limit is specified
+  if (limit !== undefined) {
+    const from = offset
+    const to = offset + limit - 1
+    query = query.range(from, to, { foreignTable: "messages" })
+  }
+
+  const { data, error } = await query.single()
+
+  // If pagination was requested, add pagination metadata
+  let result = data as ListDetail | null
+  if (result && limit !== undefined) {
+    const messageCount = result.messages?.length ?? 0
+    // For pagination, we need to determine if there are more messages available
+    // Since we can't know the total count of filtered messages without a separate query,
+    // we'll check if we got a full page - if we got fewer than limit, we're done
+    const hasMore = messageCount === limit
+    result = {
+      ...result,
+      pagination: {
+        limit,
+        offset,
+        total: result.message_count ?? 0, // This is the total unfiltered count
+        hasMore
+      }
+    }
+  }
+
+  return {
+    data: result,
+    error: error as Error | null
+  }
 }

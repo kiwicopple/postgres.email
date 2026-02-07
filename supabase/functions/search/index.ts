@@ -1,42 +1,51 @@
+/// <reference lib="deno.ns" />
+
+import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { corsHeaders } from "../_shared/cors.ts"
-import OpenAI from "https://deno.land/x/openai@v4.24.0/mod.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-// import { Database } from "./database.ts"
-
-// TODO: init supabase client
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-)
+const model = new Supabase.ai.Session("gte-small")
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
 
-  const { query } = await req.json()
-  const apiKey = Deno.env.get("OPENAI_API_KEY")
-  const openai = new OpenAI({
-    apiKey: apiKey,
-  })
+  try {
+    const { query } = await req.json()
 
-  // Create query embedding
-  const embeddingResponse = await openai.embeddings.create({
-    model: "text-embedding-ada-002",
-    input: query,
-  })
+    if (!query || typeof query !== "string") {
+      return new Response(
+        JSON.stringify({
+          error: "Query parameter is required and must be a string",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      )
+    }
 
-  const embedding = embeddingResponse.data[0].embedding
+    // Generate embedding using Supabase's built-in gte-small model
+    const embedding = await model.run(query, {
+      mean_pool: true,
+      normalize: true,
+    })
 
-  const { data } = await supabase.rpc("search", {
-    query_embedding: embedding, // pass the query embedding
-    match_threshold: 0.6, // choose an appropriate threshold for your data
-    match_count: 10, // choose the number of matches
-  })
-
-  return new Response(JSON.stringify(data), {
-    headers: { "Content-Type": "application/json" },
-    status: 200,
-  })
+    return new Response(
+      JSON.stringify({
+        query,
+        embedding,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    })
+  }
 })

@@ -1,0 +1,43 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@supabase/functions-js@*": "2.95.3"
+  },
+  "jsr": {
+    "@supabase/functions-js@2.95.3": {
+      "integrity": "cedb60df283f2d9dabf39655a8829f2c99d173e5e11a867c46e6987c59a1d582"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@supabase/supabase-js@^2.43.1",
+        "npm:@tailwindcss/forms@~0.5.2",
+        "npm:@tailwindcss/typography@~0.5.4",
+        "npm:@types/node@^20.11.0",
+        "npm:@types/react-dom@^18.2.0",
+        "npm:@types/react@^18.2.0",
+        "npm:@vitest/coverage-v8@^1.6.0",
+        "npm:autoprefixer@^10.4.8",
+        "npm:clsx@^1.2.1",
+        "npm:dotenv@^16.4.5",
+        "npm:eslint-config-next@^14.2.0",
+        "npm:eslint@^8.20.0",
+        "npm:iconv-lite@~0.6.3",
+        "npm:mailparser@^3.7.1",
+        "npm:mbox-reader@^1.1.5",
+        "npm:next@^14.2.0",
+        "npm:performant-array-to-tree@^1.11.0",
+        "npm:pg@^8.11.5",
+        "npm:postcss@^8.4.16",
+        "npm:postgres@^3.4.4",
+        "npm:react-dom@^18.2.0",
+        "npm:react-markdown@^8.0.3",
+        "npm:react@^18.2.0",
+        "npm:tailwindcss@^3.1.8",
+        "npm:typescript@^5.3.0",
+        "npm:vitest@^1.6.0"
+      ]
+    }
+  }
+}

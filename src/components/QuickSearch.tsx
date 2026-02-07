@@ -19,7 +19,7 @@ export default function QuickSearch() {
           name="search"
           id="search"
           placeholder="Search"
-          className="shadow-sm focus:ring-gray-600 focus:border-gray-600 block w-full pr-12 sm:text-sm border rounded-md bg-gray-900 border-gray-800"
+          className="shadow-sm focus:ring-0 focus:border-gray-600 block w-full pr-12 sm:text-sm border rounded-md bg-gray-900 border-gray-800"
           onKeyDown={handleKeyDown}
         />
       </div>

@@ -127,6 +127,12 @@ function parseEmailContent(text: string | null): ParsedContent {
     return false
   }
 
+  // Detect psql row count line like "(1 row)" or "(5 rows)"
+  const isPsqlRowCount = (l: string) => {
+    const trimmed = l.trim()
+    return /^\(\d+\s+rows?\)$/.test(trimmed)
+  }
+
   const flushQuote = () => {
     if (currentQuote.length > 0) {
       quotes.push(currentQuote.join('\n'))
@@ -181,25 +187,29 @@ function parseEmailContent(text: string | null): ParsedContent {
       flushCode()
       inSqlBlock = false
       currentQuote.push(line.replace(/^[>\s]+/, ''))
-    } else if (isIndented(line) || isTableLine(line) || isSqlStatement(line) || (inSqlBlock && line.trim().length > 0)) {
+    } else if (
+      isIndented(line) ||
+      (isTableLine(line) && !inSqlBlock) ||
+      isSqlStatement(line) ||
+      (inSqlBlock && (line.trim().length > 0 || isTableLine(line) || isPsqlRowCount(line)))
+    ) {
       flushQuote()
       // Start SQL block if this line is a SQL statement
       if (isSqlStatement(line)) {
         inSqlBlock = true
       }
       // For table lines and SQL, keep original formatting (don't strip indent)
-      if (isTableLine(line) || isSqlStatement(line) || inSqlBlock) {
+      if (isTableLine(line) || isSqlStatement(line) || inSqlBlock || isPsqlRowCount(line)) {
         currentCode.push(line)
       } else {
         currentCode.push(stripIndent(line))
       }
-      // End SQL block if line ends with semicolon
-      if (line.trim().endsWith(';')) {
-        inSqlBlock = false
-      }
+      // Don't immediately end SQL block at semicolon - let it continue for psql output
     } else {
       flushQuote()
-      inSqlBlock = false
+      if (inSqlBlock) {
+        inSqlBlock = false
+      }
       if (line.trim() === '' && currentCode.length > 0) {
         let hasMoreCode = false
         for (let j = i + 1; j < lines.length; j++) {
@@ -767,6 +777,30 @@ promote_triggered | pause_state | wal_source | pg_size_pretty`
       expect(sqlBlock).toContain('FROM pg_stat_recovery')
     })
 
+    it('should treat SQL query and its psql output as a single code block', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'sql_nested_escaped_quotes')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect code blocks
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Find the first SELECT statement block
+      const firstSqlBlock = parsed.codeBlocks.find(block =>
+        block.includes('SELECT') &&
+        block.includes('::text[]') &&
+        block.includes('(1 row)')
+      )
+
+      expect(firstSqlBlock).toBeDefined()
+      // The entire psql output should be in one code block
+      expect(firstSqlBlock).toContain('SELECT')
+      expect(firstSqlBlock).toContain('text')  // column header
+      expect(firstSqlBlock).toContain('---')  // separator line
+      expect(firstSqlBlock).toContain('(1 row)')  // row count
+    })
+
     it('should correctly format the pg_stat_recovery email example', () => {
       const fixture = fixtures.find((f: any) => f.id === '<CABPTF7W+Nody-+P9y4PNk37-QWuLpfUrEonHuEhrX+Vx9Kq+Kw@mail.gmail.com>')
       expect(fixture).toBeDefined()
@@ -904,6 +938,80 @@ describe('PostgreSQL Table Formatting', () => {
       expect(allCode).toContain('promote_triggered')
       expect(allCode).toContain('not paused')
       expect(allCode).toContain('---') // separator line
+    })
+  })
+
+  describe('Diff-Style Tables', () => {
+    it('should detect diff-style table with +/- rows', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_with_diff')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect the table (as code block since our test parser doesn't render tables)
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Should contain the table structure
+      const tableContent = parsed.codeBlocks.join('\n')
+      expect(tableContent).toContain('idx_scan')
+      expect(tableContent).toContain('idx_tup_read')
+      expect(tableContent).toContain('idx_tup_fetch')
+
+      // Should preserve the diff markers
+      expect(tableContent).toContain('-')
+      expect(tableContent).toContain('+')
+    })
+
+    it('should detect table with multiple diff rows', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_multiple_diffs')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect the table
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      const tableContent = parsed.codeBlocks.join('\n')
+      expect(tableContent).toContain('operation')
+      expect(tableContent).toContain('Seq Scan')
+      expect(tableContent).toContain('Index Scan')
+      expect(tableContent).toContain('Hash Join')
+      expect(tableContent).toContain('Merge Join')
+    })
+
+    it('should handle diff markers at the start of table rows', () => {
+      const body = `Results:
+
+ idx_scan | idx_tup_read
+----------+--------------
+-       5 |           10
++       5 |          224
+(1 row)`
+
+      const parsed = parseEmailContent(body)
+
+      // Should detect as table/code
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      const content = parsed.codeBlocks.join('\n')
+      expect(content).toContain('idx_scan')
+      expect(content).toContain('-')
+      expect(content).toContain('+')
+    })
+
+    it('should preserve diff table structure with SQL context', () => {
+      const fixture = fixtures.find((f: any) => f.name === 'postgres_table_with_diff')
+      expect(fixture).toBeDefined()
+
+      const parsed = parseEmailContent(fixture.body_text)
+
+      // Should detect both SQL and table
+      expect(parsed.codeBlocks.length).toBeGreaterThan(0)
+
+      // Check that both the WHERE clause and the table are captured
+      const allContent = parsed.codeBlocks.join('\n')
+      expect(allContent).toContain('WHERE')
+      expect(allContent).toContain('idx_scan')
     })
   })
 })

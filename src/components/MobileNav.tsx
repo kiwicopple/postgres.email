@@ -18,7 +18,9 @@ export default function MobileNav({ lists }: { lists: ListItem[] }) {
   return (
     <div className="md:hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <span className="text-lg text-blue-400">postgres.email</span>
+        <Link href="/lists" className="text-lg text-blue-400 hover:text-blue-300 transition-colors">
+          postgres.email
+        </Link>
         <button
           onClick={() => setOpen(!open)}
           className="p-2 rounded text-gray-400 hover:text-gray-200 hover:bg-gray-800"

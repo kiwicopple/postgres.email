@@ -9,8 +9,6 @@
     "download": "node -r dotenv/config scripts/download.js",
     "parse": "node -r dotenv/config scripts/parse.js",
     "parse:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/parse.js",
-    "embed": "node -r dotenv/config scripts/embed.js",
-    "embed:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed.js",
     "fetch-fixture": "node -r dotenv/config scripts/fetch-email-fixture.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,7 +19,6 @@
     "clsx": "^1.2.1",
     "dotenv": "^16.4.5",
     "next": "^14.2.0",
-    "openai": "^4.45.0",
     "performant-array-to-tree": "^1.11.0",
     "postgres": "^3.4.4",
     "react": "^18.2.0",
@@ -48,6 +45,6 @@
     "vitest": "^1.6.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

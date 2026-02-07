@@ -1,10 +1,13 @@
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "@/models/thread"
 import ThreadView from "./ThreadView"
+import { REVALIDATE_INTERVAL } from "@/lib/constants"
+import { normalizeMessageId } from "@/lib/formatters"
 
-// Revalidate every 60 seconds - this is a read-only archive
-export const revalidate = 60
+// Revalidate - this is a read-only archive
+export const revalidate = REVALIDATE_INTERVAL
 
 export default async function ThreadPage({
   params,
@@ -12,12 +15,12 @@ export default async function ThreadPage({
   params: { listId: string; threadId: string }
 }) {
   const { listId, threadId: rawThreadId } = params
-  const threadId = decodeURIComponent(rawThreadId)
+  const threadId = normalizeMessageId(decodeURIComponent(rawThreadId))
 
   const { data: thread, error } = await getThread(threadId)
 
   if (error) throw new Error(error.message)
-  if (!thread || thread.length === 0) throw new Error(`Thread not found: ${threadId}`)
+  if (!thread || thread.length === 0) notFound()
 
   const tree = arrayToTree(thread, { parentId: "in_reply_to" })[0]
 
