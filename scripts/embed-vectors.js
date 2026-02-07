@@ -10,13 +10,14 @@ const UPSERT_BATCH_SIZE = 250
 const EMBEDDING_MODEL = 'gte-small'
 
 /**
- * Fetch messages that haven't been embedded yet
+ * Fetch a batch of messages that haven't been embedded yet.
+ * Always returns at most BATCH_SIZE rows to bound memory usage.
  * @param {import('pg').Pool} pool
  * @param {string[]} lists
- * @param {number|null} limit
+ * @param {number} batchSize
  * @returns {Promise<Array>}
  */
-async function fetchUnembeddedMessages(pool, lists, limit) {
+async function fetchUnembeddedBatch(pool, lists, batchSize) {
   const query = `
     SELECT id, mailbox_id, subject, from_email, ts, body_text
     FROM messages
@@ -24,9 +25,9 @@ async function fetchUnembeddedMessages(pool, lists, limit) {
       AND embedded_at IS NULL
       AND mailbox_id = ANY($1)
     ORDER BY ts DESC
-    ${limit ? `LIMIT ${parseInt(limit, 10)}` : ''}
+    LIMIT $2
   `
-  const { rows } = await pool.query(query, [lists])
+  const { rows } = await pool.query(query, [lists, batchSize])
   return rows
 }
 
@@ -157,22 +158,25 @@ async function main() {
       .from('email-embeddings')
       .index('email-chunks')
 
-    const messages = await fetchUnembeddedMessages(pool, lists, options.limit)
+    const batchSize = options.limit
+      ? Math.min(parseInt(options.limit, 10), BATCH_SIZE)
+      : BATCH_SIZE
 
-    if (messages.length === 0) {
-      console.log('\nNo unembedded messages found.')
-      return
-    }
-
-    console.log(`\nFound ${messages.length} messages to embed`)
-
+    let totalMessages = 0
     let totalChunks = 0
     let totalSkipped = 0
+    let batchNum = 0
+    let remaining = options.limit ? parseInt(options.limit, 10) : Infinity
 
-    for (let i = 0; i < messages.length; i += BATCH_SIZE) {
-      const batch = messages.slice(i, i + BATCH_SIZE)
-      const batchNum = Math.floor(i / BATCH_SIZE) + 1
-      const totalBatches = Math.ceil(messages.length / BATCH_SIZE)
+    // Fetch and process in batches — each batch is a self-contained unit.
+    // After marking embedded_at, the next fetch naturally skips processed rows.
+    while (remaining > 0) {
+      const fetchSize = Math.min(batchSize, remaining)
+      const batch = await fetchUnembeddedBatch(pool, lists, fetchSize)
+
+      if (batch.length === 0) break
+
+      batchNum++
 
       // Chunk in memory
       const chunks = chunkMessages(batch)
@@ -187,18 +191,25 @@ async function main() {
       const batchIds = batch.map(m => m.id)
       await markMessagesEmbedded(pool, batchIds)
 
+      totalMessages += batch.length
       totalChunks += chunks.length
       totalSkipped += skipped
+      remaining -= batch.length
 
       process.stdout.write(
-        `\r  Batch ${batchNum}/${totalBatches}: ${chunks.length} chunks from ${batch.length} messages`
+        `\r  Batch ${batchNum}: ${chunks.length} chunks from ${batch.length} messages (${totalMessages} total)`
           .padEnd(80)
       )
     }
 
+    if (totalMessages === 0) {
+      console.log('\nNo unembedded messages found.')
+      return
+    }
+
     console.log(`\n\n${'='.repeat(60)}`)
     console.log(`Embedding complete!`)
-    console.log(`  Messages processed: ${messages.length}`)
+    console.log(`  Messages processed: ${totalMessages}`)
     console.log(`  Chunks embedded: ${totalChunks}`)
     console.log(`  Messages skipped (too short): ${totalSkipped}`)
     console.log(`${'='.repeat(60)}`)
@@ -209,12 +220,13 @@ async function main() {
 
 // Export for testing
 module.exports = {
-  fetchUnembeddedMessages,
+  fetchUnembeddedBatch,
   markMessagesEmbedded,
   chunkMessages,
   buildVectors,
   embedAndStoreBatch,
   EMBEDDING_MODEL,
+  BATCH_SIZE,
 }
 
 // Run if executed directly
