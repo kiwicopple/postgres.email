@@ -3,6 +3,9 @@ import { arrayToTree } from "performant-array-to-tree"
 import { getThread } from "@/models/thread"
 import ThreadView from "./ThreadView"
 
+// Revalidate every 60 seconds - this is a read-only archive
+export const revalidate = 60
+
 export default async function ThreadPage({
   params,
 }: {

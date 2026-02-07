@@ -1,6 +1,9 @@
 import { getListDetail } from "@/models/list"
 import MessageList from "./MessageList"
 
+// Revalidate every 60 seconds - this is a read-only archive
+export const revalidate = 60
+
 export default async function ListDetailLayout({
   children,
   params,

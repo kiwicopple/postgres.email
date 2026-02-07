@@ -96,6 +96,37 @@ postgres.email/
 
 ## Critical Performance Patterns
 
+### Next.js Caching Configuration
+
+**Important:** This is a read-only archive with infrequent updates, so aggressive caching is enabled.
+
+All main pages use **Incremental Static Regeneration (ISR)** with a 60-second revalidation period:
+
+**Pages with caching:**
+- `src/app/lists/layout.tsx` - List sidebar (mailbox list)
+- `src/app/lists/[listId]/layout.tsx` - Message list for specific mailbox
+- `src/app/lists/[listId]/[threadId]/page.tsx` - Individual thread view
+
+```typescript
+// Each page exports this constant
+export const revalidate = 60 // Revalidate every 60 seconds
+```
+
+**Pages without caching:**
+- `src/app/lists/search/page.tsx` - Search results (uses `force-dynamic`)
+
+**What this means:**
+- First request generates static page and caches it
+- Subsequent requests serve cached version (very fast)
+- After 60 seconds, next request triggers background regeneration
+- User still gets fast cached response while page rebuilds
+- New emails appear within 60 seconds of being added
+
+**For debugging:**
+- If content seems stale, wait 60+ seconds and refresh
+- Check build logs for cache misses/hits
+- Verify `revalidate` export exists in page files
+
 ### Query Optimization
 
 **❌ BAD - Fetches all columns including large body_text:**

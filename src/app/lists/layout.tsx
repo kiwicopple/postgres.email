@@ -3,7 +3,8 @@ import QuickSearch from "@/components/QuickSearch"
 import MobileNav from "@/components/MobileNav"
 import ListNav from "@/components/ListNav"
 
-export const dynamic = "force-dynamic"
+// Revalidate every 60 seconds - this is a read-only archive
+export const revalidate = 60
 
 export default async function ListsLayout({
   children,
