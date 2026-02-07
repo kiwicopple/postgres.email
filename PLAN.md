@@ -113,7 +113,7 @@ setup().catch(console.error)
 
 ---
 
-## Phase 2: Chunking Pipeline
+## Phase 2: Chunking Pipeline ✅
 
 **Goal:** Split email bodies into semantically meaningful chunks before embedding.
 
@@ -169,7 +169,7 @@ The `chunk.js` script:
 
 ---
 
-## Phase 3: Embedding Pipeline
+## Phase 3: Embedding Pipeline ✅
 
 **Goal:** Embed chunks and store them in the vector bucket.
 
@@ -448,34 +448,38 @@ Set up a scheduled job (Supabase cron, GitHub Actions) to run the pipeline daily
 
 ## File Changes Summary
 
-### New files
+### Completed ✅
+
+| File | Purpose |
+|---|---|
+| `scripts/lib/chunker.js` | Pure chunking logic — split, clean, overlap |
+| `scripts/chunk.js` | Chunk messages into `message_chunks` |
+| `scripts/embed-vectors.js` | Embed chunks with `gte-small` → vector bucket |
+| `supabase/migrations/20260207160000_message_chunks.sql` | `message_chunks` table |
+| `tests/integration/scripts/chunker.test.js` | 25 tests for chunking logic |
+| `tests/integration/scripts/chunk.test.js` | 6 tests for chunk script |
+| `tests/integration/scripts/embed-vectors.test.js` | 6 tests for embed script |
+| `package.json` | Added `chunk`, `chunk:prod`, `embed:vectors`, `embed:vectors:prod` scripts |
+
+### Remaining
 
 | File | Purpose |
 |---|---|
 | `scripts/setup-vector-bucket.js` | One-time setup: create bucket and index |
-| `scripts/chunk.js` | Chunk messages into `message_chunks` |
-| `scripts/embed-vectors.js` | Embed chunks with `gte-small` → vector bucket |
 | `scripts/pipeline.js` | Orchestrate full ingestion pipeline |
-| `supabase/migrations/XXXXXX_message_chunks.sql` | `message_chunks` table |
-
-### Modified files
-
-| File | Change |
-|---|---|
-| `package.json` | Add npm scripts, add `@xenova/transformers`, update `@supabase/supabase-js` |
 | `supabase/functions/search/index.ts` | Add vector bucket query, deduplication, message fetch |
 | `src/app/lists/search/page.tsx` | Replace placeholder with search results UI |
-| `src/components/QuickSearch.tsx` | Add list filter support |
+| `package.json` | Add `@xenova/transformers`, update `@supabase/supabase-js` |
 
 ---
 
 ## Testing Plan
 
-1. **Chunking** — paragraph splitting, overlap, edge cases (empty body, all-quoted, very long, code-heavy)
-2. **Embedding pipeline** — mock `@xenova/transformers`, verify 384-dim vectors and metadata
-3. **Round-trip** — chunk → embed → query → verify original message appears
-4. **Search quality** — known queries, verify relevance
-5. **Load test** — 1M+ messages without failures or memory issues
+1. ✅ **Chunking** — paragraph splitting, overlap, edge cases (empty body, all-quoted, very long, code-heavy) — 25 tests
+2. ✅ **Chunk script** — message chunking, quoted reply stripping, multi-message — 6 tests
+3. ✅ **Embed vectors** — vector structure, metadata, Float32Array conversion, model versioning — 6 tests
+4. **Round-trip** — chunk → embed → query → verify original message appears
+5. **Search quality** — known queries, verify relevance
 6. **Edge Function** — metadata filtering, deduplication, error handling
 
 ---
