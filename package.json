@@ -9,6 +9,7 @@
     "download": "node -r dotenv/config scripts/download.js",
     "parse": "node -r dotenv/config scripts/parse.js",
     "parse:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/parse.js",
+    "parse:sample": "node -r dotenv/config scripts/parse.js --file tests/integration/fixtures/sample.mbox --mailbox sample",
     "embed:vectors": "node -r dotenv/config scripts/embed-vectors.js",
     "embed:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed-vectors.js",
     "setup:vectors": "node -r dotenv/config scripts/setup-vector-bucket.js",

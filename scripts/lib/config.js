@@ -32,6 +32,8 @@ function parseArgs(args = process.argv.slice(2)) {
     dryRun: false,
     limit: null,
     verbose: false,
+    file: null,
+    mailbox: null,
   }
 
   for (let i = 0; i < args.length; i++) {
@@ -51,6 +53,10 @@ function parseArgs(args = process.argv.slice(2)) {
       options.limit = parseInt(args[++i], 10)
     } else if (arg === '--verbose' || arg === '-v') {
       options.verbose = true
+    } else if (arg === '--file' && args[i + 1]) {
+      options.file = args[++i]
+    } else if (arg === '--mailbox' && args[i + 1]) {
+      options.mailbox = args[++i]
     }
   }
 

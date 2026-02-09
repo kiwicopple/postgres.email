@@ -69,13 +69,29 @@ pnpm download
 Parses mbox files and imports messages into the database.
 
 ```bash
+# Parse all default lists from archives directory
 pnpm parse
+
+# Parse specific lists
+pnpm parse -- --lists pgsql-hackers,pgsql-general
+
+# Parse a single file
+pnpm parse -- --file path/to/file.mbox --mailbox my-mailbox
+
+# Load sample test data
+pnpm parse:sample
 ```
 
 Production:
 ```bash
 pnpm parse:prod
 ```
+
+Flags:
+- `--file <path>` — parse a specific mbox file
+- `--mailbox <name>` — mailbox name (defaults to "sample" when using --file)
+- `--lists <list1,list2>` — parse specific lists from archives directory
+- `--verbose` — verbose logging
 
 ### embed-vectors.js
 

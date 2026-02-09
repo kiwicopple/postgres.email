@@ -140,8 +140,58 @@ async function main() {
     errorFile: path.join(ARCHIVES_DIR, 'parse-errors.log'),
   })
 
-  const lists = options.lists || DEFAULT_LISTS
   const pool = getPool()
+
+  // Single file mode
+  if (options.file) {
+    const filePath = path.resolve(options.file)
+    const mailbox = options.mailbox || 'sample'
+
+    console.log(`\n${'='.repeat(60)}`)
+    console.log(`📝 Parsing single file`)
+    console.log(`   File: ${filePath}`)
+    console.log(`   Mailbox: ${mailbox}`)
+    console.log(`${'='.repeat(60)}`)
+
+    try {
+      // Ensure mailbox exists
+      await ensureMailbox(pool, mailbox)
+
+      console.log(`\n📄 Parsing ${path.basename(filePath)}...`)
+      const messages = await parseMboxFile(filePath, logger)
+
+      if (messages.length === 0) {
+        console.log(`⚠️  No messages found`)
+        return
+      }
+
+      console.log(`   Found ${messages.length} messages`)
+
+      // Insert in batches
+      const totalBatches = Math.ceil(messages.length / BATCH_SIZE)
+      for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+        const batch = messages.slice(i, i + BATCH_SIZE)
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1
+        process.stdout.write(`💾 Inserting batch ${batchNum}/${totalBatches}...\r`)
+        await insertMessagesBatch(pool, batch, mailbox)
+      }
+
+      console.log(`✅ Loaded ${messages.length} messages${' '.repeat(20)}`)
+
+      // Update message count
+      await updateMailboxCount(pool, mailbox)
+
+      console.log(`\n${'='.repeat(60)}`)
+      console.log(`✨ Parse complete!`)
+      console.log(`${'='.repeat(60)}`)
+    } finally {
+      await closePool()
+    }
+    return
+  }
+
+  // Multi-list mode (original behavior)
+  const lists = options.lists || DEFAULT_LISTS
 
   console.log(`\n${'='.repeat(60)}`)
   console.log(`📝 Parsing ${lists.length} list(s)`)
