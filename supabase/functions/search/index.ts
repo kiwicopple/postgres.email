@@ -2,13 +2,13 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { corsHeaders } from "../_shared/cors.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from "npm:@supabase/supabase-js@2"
 
 const model = new Supabase.ai.Session("gte-small")
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
 )
 
 /**
@@ -16,7 +16,10 @@ const supabase = createClient(
  * Multiple chunks from the same email may match — keep only the best (first) hit.
  */
 export function deduplicateResults(
-  vectorResults: Array<{ metadata?: Record<string, unknown>; distance?: number }>
+  vectorResults: Array<{
+    metadata?: Record<string, unknown>
+    distance?: number
+  }>,
 ): Array<{ metadata?: Record<string, unknown>; distance?: number }> {
   const seen = new Set<string>()
   const unique: typeof vectorResults = []
@@ -36,8 +39,11 @@ export function deduplicateResults(
  * Merge vector results with full message rows, preserving ranking order.
  */
 export function rankResults(
-  uniqueResults: Array<{ metadata?: Record<string, unknown>; distance?: number }>,
-  messages: Array<Record<string, unknown>>
+  uniqueResults: Array<{
+    metadata?: Record<string, unknown>
+    distance?: number
+  }>,
+  messages: Array<Record<string, unknown>>,
 ): Array<Record<string, unknown>> {
   const messageMap = new Map(messages.map((m) => [m.id, m]))
 
@@ -70,15 +76,15 @@ Deno.serve(async (req) => {
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       )
     }
 
     // 1. Embed the user query with gte-small (runs on-device in the edge runtime)
-    const queryVector = await model.run(query, {
+    const queryVector = (await model.run(query, {
       mean_pool: true,
       normalize: true,
-    })
+    })) as number[]
 
     // 2. Query vector bucket with optional metadata filter
     const index = supabase.storage.vectors
@@ -102,7 +108,7 @@ Deno.serve(async (req) => {
     }
 
     // 3. Deduplicate by message_id (multiple chunks may match from same email)
-    const uniqueResults = deduplicateResults(vectorResults ?? [])
+    const uniqueResults = deduplicateResults(vectorResults?.vectors ?? [])
 
     // 4. Fetch full messages from Postgres
     const messageIds = uniqueResults
