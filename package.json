@@ -11,6 +11,7 @@
     "parse:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/parse.js",
     "parse:sample": "node -r dotenv/config scripts/parse.js --file tests/integration/fixtures/sample.mbox --mailbox sample",
     "embed:vectors": "node -r dotenv/config scripts/embed-vectors.js",
+    "embed:vectors:test": "node -r dotenv/config scripts/embed-vectors.js --dry-run --limit 10",
     "embed:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed-vectors.js",
     "setup:vectors": "node -r dotenv/config scripts/setup-vector-bucket.js",
     "setup:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/setup-vector-bucket.js",
@@ -46,6 +47,7 @@
     "mbox-reader": "^1.1.5",
     "pg": "^8.11.5",
     "postcss": "^8.4.16",
+    "prettier": "^3.8.1",
     "tailwindcss": "^3.1.8",
     "typescript": "^5.3.0",
     "vitest": "^1.6.0"
