@@ -9,13 +9,18 @@
     "download": "node -r dotenv/config scripts/download.js",
     "parse": "node -r dotenv/config scripts/parse.js",
     "parse:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/parse.js",
+    "embed:vectors": "node -r dotenv/config scripts/embed-vectors.js",
+    "embed:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/embed-vectors.js",
+    "setup:vectors": "node -r dotenv/config scripts/setup-vector-bucket.js",
+    "setup:vectors:prod": "DOTENV_CONFIG_PATH=.env.prod node -r dotenv/config scripts/setup-vector-bucket.js",
     "fetch-fixture": "node -r dotenv/config scripts/fetch-email-fixture.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.43.1",
+    "@supabase/supabase-js": "^2.95.3",
+    "@xenova/transformers": "^2.17.2",
     "clsx": "^1.2.1",
     "dotenv": "^16.4.5",
     "next": "^14.2.0",
@@ -26,12 +31,12 @@
     "react-markdown": "^8.0.3"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^1.6.0",
     "@tailwindcss/forms": "^0.5.2",
     "@tailwindcss/typography": "^0.5.4",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@vitest/coverage-v8": "^1.6.0",
     "autoprefixer": "^10.4.8",
     "eslint": "^8.20.0",
     "eslint-config-next": "^14.2.0",
