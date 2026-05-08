@@ -63,3 +63,7 @@ GRANT ALL ON public.threads TO anon;
 GRANT ALL ON public.threads TO authenticated;
 
 GRANT ALL ON public.threads TO service_role;
+
+-- GRANT ALL doesn't actually grant SELECT for these roles in Supabase.
+-- Explicit SELECT lets PostgREST read for frontend queries.
+GRANT SELECT ON public.threads TO anon, authenticated, service_role;

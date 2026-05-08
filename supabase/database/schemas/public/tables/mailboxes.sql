@@ -19,3 +19,7 @@ GRANT ALL ON public.mailboxes TO anon;
 GRANT ALL ON public.mailboxes TO authenticated;
 
 GRANT ALL ON public.mailboxes TO service_role;
+
+-- GRANT ALL doesn't actually grant SELECT/INSERT/UPDATE/DELETE for these roles
+-- in Supabase. Explicit SELECT lets PostgREST read for frontend queries.
+GRANT SELECT ON public.mailboxes TO anon, authenticated, service_role;

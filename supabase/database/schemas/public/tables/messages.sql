@@ -51,3 +51,9 @@ GRANT ALL ON public.messages TO anon;
 GRANT ALL ON public.messages TO authenticated;
 
 GRANT ALL ON public.messages TO service_role;
+
+-- GRANT ALL doesn't actually grant SELECT/INSERT/UPDATE/DELETE for these roles
+-- in Supabase (only TRUNCATE/REFERENCES/TRIGGER come through). We need
+-- explicit SELECT so PostgREST can read for the search edge function and
+-- frontend queries.
+GRANT SELECT ON public.messages TO anon, authenticated, service_role;
