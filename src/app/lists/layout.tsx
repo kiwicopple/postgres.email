@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Suspense } from "react"
 import { getLists } from "@/models/list"
 import QuickSearch from "@/components/QuickSearch"
 import MobileNav from "@/components/MobileNav"
@@ -39,7 +40,12 @@ export default async function ListsLayout({
               <GoToMessage />
             </div>
             <div className="border-t border-gray-800 px-2 py-3">
-              <QuickSearch />
+              {/* Suspense boundary required because QuickSearch reads
+                  useSearchParams(), which forces CSR bailout on static
+                  pages like /lists and /lists/not-found otherwise. */}
+              <Suspense fallback={null}>
+                <QuickSearch />
+              </Suspense>
             </div>
             <div className="border-t border-gray-800 px-2 py-2">
               <FormattingToggle />
