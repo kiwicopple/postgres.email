@@ -42,9 +42,12 @@ postgres.email/
 ├── scripts/                  # CLI tools for data pipeline
 │   ├── download.js          # Download mbox archives
 │   ├── parse.js             # Parse emails and insert to DB
-│   ├── embed.js             # Generate vector embeddings
+│   ├── setup-vector-bucket.js # Create vector bucket + index (one-time)
+│   ├── embed-vectors.js     # Chunk + embed (gte-small) into vector bucket
+│   ├── smoke-search.js      # End-to-end prod smoke test for search
 │   └── lib/
 │       ├── config.js        # Shared configuration
+│       ├── chunker.js       # Paragraph-aware text splitter
 │       ├── db.js            # Database utilities
 │       └── logger.js        # Logging utilities
 ├── tests/                   # Integration tests
@@ -79,7 +82,7 @@ postgres.email/
 - `body_text` (text): Email body content
 - `attachments` (jsonb): Attachment metadata
 - `headers` (jsonb): Full email headers
-- `embedding` (vector(1536)): OpenAI text embedding for semantic search
+- `embedded_at` (timestamptz): Set when chunks have been embedded into the Vector Bucket. Embeddings themselves are *not* stored in this table — see Search architecture below.
 
 ### Views
 
@@ -95,7 +98,7 @@ postgres.email/
 - `messages(in_reply_to)`: For threading queries
 - `idx_messages_mailbox_root_threads`: Partial index for root threads (WHERE in_reply_to IS NULL) per mailbox
 - `idx_messages_mailbox_ts`: Composite index for all messages per mailbox ordered by timestamp
-- Vector index on `embedding`: For semantic search
+- `messages_embedded_at_idx`: Partial index on `embedded_at IS NULL` for the embed pipeline's "what's left to process" query
 
 ## Critical Performance Patterns
 
@@ -262,13 +265,45 @@ node scripts/parse.js --lists pgsql-hackers --verbose
 NODE_ENV=production node -r dotenv/config scripts/parse.js dotenv_config_path=.env.prod --lists pgsql-hackers
 ```
 
-### 5. Generating Embeddings
+### 5. Search Pipeline (Vector Buckets + gte-small)
 
+Search is built on Supabase **Vector Buckets** (S3-backed) — a hosted-only feature. There is no local equivalent, so all setup/embed/query work runs against the hosted prod project.
+
+**Architecture:**
+1. `scripts/setup-vector-bucket.js` — creates `email-embeddings` bucket + `email-chunks` index (gte-small, 384 dims, cosine, float32). Idempotent.
+2. `scripts/embed-vectors.js` — fetches messages where `embedded_at IS NULL`, chunks `body_text` with `scripts/lib/chunker.js`, embeds each chunk with `Supabase/gte-small` via `@xenova/transformers`, writes vectors to the bucket, marks `embedded_at`. Crash-safe — second run picks up where the first left off.
+3. `supabase/functions/search/index.ts` — embeds the user's query in the edge runtime via `Supabase.ai.Session("gte-small")`, queries the bucket, dedupes by `message_id`, joins to `messages` for full rows.
+4. `src/app/lists/search/page.tsx` — calls the function via `supabase.functions.invoke("search", ...)`.
+
+**One-time setup (per project):**
 ```bash
-node scripts/embed.js --lists pgsql-hackers --limit 100
+npm run setup:vectors:prod
 ```
 
-Requires `OPENAI_API_KEY` in environment.
+**Run / resume the embed pipeline:**
+```bash
+# All unembedded messages
+npm run embed:vectors:prod
+
+# Test with dry-run (prints vectors as JSON, no writes, doesn't mark embedded_at)
+npm run embed:vectors:test
+```
+
+**Deploy the edge function:**
+```bash
+supabase functions deploy search --project-ref <project-ref>
+```
+
+**Smoke-test end-to-end against prod:**
+```bash
+npm run smoke:search:prod
+```
+This embeds a query locally, queries the bucket directly, then calls the deployed function and reports any divergence.
+
+**Vector Buckets API gotchas (learned the hard way):**
+- `createIndex` requires `dataType: 'float32'`.
+- All metadata values must be **strings** — numbers/booleans get rejected with a confusing "must be boolean … must match exactly one schema in oneOf" error. The chunk number is encoded in the vector key (`<msg_id>#chunk<N>`) instead of in metadata; the search function parses it from the key for `matched_chunk` in the response.
+- Declare display-only metadata keys as `nonFilterableMetadataKeys` on the index. Only `mailbox_id` is filterable here.
 
 ### 6. Running Tests
 
@@ -370,6 +405,45 @@ Row Level Security is enabled but policies allow all reads:
 ```sql
 create policy "Read only" on public.messages for select to anon, authenticated using (true);
 ```
+
+### 2a. Table grants are explicit (new platform default)
+
+This project was created after April 28 2026, with the new "tables not auto-exposed" default. `pg_default_acl` is configured so the `postgres` role grants only TRUNCATE/REFERENCES/TRIGGER to `anon`/`authenticated`/`service_role` — **not** SELECT/INSERT/UPDATE/DELETE.
+
+Implication: `GRANT ALL ON public.foo TO anon, authenticated, service_role` does **not** make `foo` reachable via the Data API. You need an explicit `GRANT SELECT` (or whichever privileges the role actually needs) per table. This is enforced before RLS — without the grant, PostgREST returns `permission denied for table foo`, regardless of policies.
+
+The Data API surface in this project is **read-only**: the frontend reads as `anon` and the search edge function reads as `service_role` via `@supabase/server`. All writes go through direct postgres connections from the data-pipeline scripts. So every public table/view ends with:
+
+```sql
+GRANT SELECT ON public.foo TO anon, authenticated, service_role;
+```
+
+Reference: https://github.com/orgs/supabase/discussions/45329
+
+### 2b. Supabase API keys: new model only
+
+**Use new keys, not legacy `service_role`/`anon` JWTs.** The platform is on the new key model:
+
+- `sb_publishable_*` (env: `SUPABASE_PUBLISHABLE_KEY` for Node, `SUPABASE_PUBLISHABLE_KEYS` plural in deployed functions) — replaces anon JWT.
+- `sb_secret_*` (env: `SUPABASE_SECRET_KEY` for Node, `SUPABASE_SECRET_KEYS` plural in deployed functions) — replaces service_role JWT.
+
+For server-side code that needs an RLS-bypassing client (edge functions, admin scripts), use the **`@supabase/server`** package, not `@supabase/supabase-js` directly:
+
+```ts
+// supabase/functions/<name>/index.ts
+import { withSupabase } from "npm:@supabase/server"
+
+export default {
+  fetch: withSupabase({ auth: ["publishable", "secret"] }, async (req, ctx) => {
+    const { data } = await ctx.supabaseAdmin.from("messages").select("id").limit(5)
+    return Response.json(data)
+  }),
+}
+```
+
+Auth options for `withSupabase`: `"user"` | `"publishable"` | `"secret"` | `"none"`, or an array. Pick `["publishable", "secret"]` for endpoints both the public site and admin scripts call.
+
+`@supabase/supabase-js` constructed with an `sb_secret_*` key will **not** be recognized as service_role by PostgREST — you'll get "permission denied" on RLS-protected tables. Always go through `@supabase/server` for admin access.
 
 ### 3. Mbox File Format
 
