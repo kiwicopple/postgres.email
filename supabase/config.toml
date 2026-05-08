@@ -47,3 +47,6 @@ enable_confirmations = true
 [functions.search]
 verify_jwt = false
 # import_map = './import_map.json'
+
+[experimental.pgdelta]
+enabled = true
