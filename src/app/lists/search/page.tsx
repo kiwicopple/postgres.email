@@ -52,7 +52,22 @@ export default async function SearchPage({
     }
   )
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="mb-6">
+          <SearchFilter
+            lists={lists || []}
+            currentList={listFilter}
+            currentQuery={query}
+          />
+        </div>
+        <p className="text-red-400 text-sm">
+          Search is temporarily unavailable. Please try again in a moment.
+        </p>
+      </div>
+    )
+  }
 
   const searchResults: SearchResult[] = results || []
 

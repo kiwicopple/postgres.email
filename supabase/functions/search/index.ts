@@ -64,7 +64,7 @@ export function rankResults(
 }
 
 export default {
-  fetch: withSupabase({ auth: "secret" }, async (req, ctx) => {
+  fetch: withSupabase({ auth: ["publishable", "secret"] }, async (req, ctx) => {
     if (req.method === "OPTIONS") {
       return new Response("ok", { headers: corsHeaders })
     }
