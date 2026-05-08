@@ -52,7 +52,8 @@ postgres.email/
 │       ├── scripts/         # Script tests
 │       └── site/            # Web app tests
 └── supabase/
-    └── migrations/          # Database migrations
+    ├── database/            # Declarative schema source of truth (SQL files)
+    └── migrations/          # Generated migrations (do not edit directly)
 
 ```
 
@@ -183,35 +184,37 @@ export type ListDetailDataSuccess = NonNullable<ListDetailData["data"]> & {
 
 ### 1. Making Database Schema Changes
 
-**IMPORTANT:** All database changes MUST be made through migrations, not by directly modifying the database.
+**IMPORTANT:** This project uses **declarative schemas**. The source of truth is the SQL files in `supabase/database/`. Do NOT write migrations by hand or use `supabase migration new`.
 
-#### Create a new migration:
-```bash
-# Create a new migration file
-supabase migration new <descriptive_name>
+#### How it works
 
-# Example:
-supabase migration new add_reply_count_to_messages
+The experimental `pgdelta` feature is already enabled in `supabase/config.toml`:
+```toml
+[experimental.pgdelta]
+enabled = true
 ```
 
-This creates a new file in `supabase/migrations/` with a timestamp prefix.
+The SQL files in `supabase/database/` describe what the schema *should* look like. You edit those files, then run sync — the CLI diffs against the current state, generates a migration, and applies it.
 
-#### Write your SQL:
-Edit the migration file and add your SQL:
-```sql
--- supabase/migrations/20240101000000_add_reply_count_to_messages.sql
-ALTER TABLE messages ADD COLUMN reply_count INTEGER DEFAULT 0;
+#### Workflow: edit schema files, then sync
 
-CREATE INDEX messages_reply_count_idx ON messages(reply_count);
+**Step 1:** Edit the relevant SQL file(s) in `supabase/database/` to reflect the desired schema state (e.g. add a column, create a new table/index/view).
+
+**Step 2:** Run sync:
+```bash
+supabase db schema declarative sync
 ```
 
-#### Apply migration locally:
-```bash
-# Apply to local database
-supabase db reset
+The CLI will:
+1. Diff your schema files against the local database
+2. Generate the migration SQL
+3. Prompt you for a migration name
+4. Warn you if there are destructive statements (DROP, etc.)
+5. Apply the migration to the local database
 
-# Or just apply new migrations
-supabase migration up
+#### Non-interactive (for CI or agentic use):
+```bash
+supabase db schema declarative sync --apply --name <migration_name>
 ```
 
 #### Apply to production:
@@ -224,17 +227,11 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-**Why migrations?**
-- Version controlled schema changes
-- Reproducible across environments
-- Safe rollback capability
-- Team coordination
-- Automatic deployment to production
-
 **Never do this:**
+❌ `supabase migration new` — don't write migrations by hand
 ❌ Direct SQL via Supabase Studio
 ❌ Manual ALTER TABLE in production
-❌ Schema changes without migration files
+❌ Editing migration files in `supabase/migrations/` directly (they are generated)
 
 ### 2. Regenerating Database Types
 
