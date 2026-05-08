@@ -27,6 +27,10 @@ export default function SearchFilter({
     router.push(`/lists/search?${params.toString()}`)
   }
 
+  const mode = searchParams.get("mode") === "ask" ? "ask" : "search"
+  const placeholder = mode === "ask" ? "Ask a question…" : "Search emails…"
+  const submitLabel = mode === "ask" ? "Ask" : "Search"
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
@@ -35,8 +39,7 @@ export default function SearchFilter({
     const params = new URLSearchParams()
     params.set("q", q.trim())
     if (currentList) params.set("list", currentList)
-    const mode = searchParams.get("mode")
-    if (mode) params.set("mode", mode)
+    if (mode === "ask") params.set("mode", "ask")
     router.push(`/lists/search?${params.toString()}`)
   }
 
@@ -46,7 +49,7 @@ export default function SearchFilter({
         type="text"
         name="q"
         defaultValue={currentQuery}
-        placeholder="Search emails..."
+        placeholder={placeholder}
         className="flex-grow px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded-md focus:outline-none focus:border-blue-500 text-gray-200 placeholder-gray-500"
       />
       <select
@@ -65,7 +68,7 @@ export default function SearchFilter({
         type="submit"
         className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
       >
-        Search
+        {submitLabel}
       </button>
     </form>
   )
