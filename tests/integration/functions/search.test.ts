@@ -52,6 +52,23 @@ function rankResults(
     .filter(Boolean) as Array<Record<string, unknown>>
 }
 
+function deduplicateByThread(
+  ranked: Array<Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  const seen = new Set<string>()
+  const unique: Array<Record<string, unknown>> = []
+
+  for (const row of ranked) {
+    const threadId = row.thread_id as string | null | undefined
+    const key = threadId ?? (row.id as string | undefined)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    unique.push(row)
+  }
+
+  return unique
+}
+
 // --- Test data ---
 
 const vectorResults: VectorResult[] = [
@@ -227,5 +244,50 @@ describe('rankResults', () => {
 
   it('handles empty messages', () => {
     expect(rankResults(unique, [])).toEqual([])
+  })
+})
+
+describe('deduplicateByThread', () => {
+  it('collapses multiple hits from the same thread to the first (best-scoring)', () => {
+    const ranked = [
+      { id: '<a@x>', thread_id: '<root@x>', score: 0.95 },
+      { id: '<b@x>', thread_id: '<root@x>', score: 0.80 },
+      { id: '<c@x>', thread_id: '<other@x>', score: 0.70 },
+    ]
+    const collapsed = deduplicateByThread(ranked)
+    expect(collapsed).toHaveLength(2)
+    expect(collapsed[0].id).toBe('<a@x>')
+    expect(collapsed[1].id).toBe('<c@x>')
+  })
+
+  it('preserves rank order across distinct threads', () => {
+    const ranked = [
+      { id: '<a@x>', thread_id: '<t1@x>' },
+      { id: '<b@x>', thread_id: '<t2@x>' },
+      { id: '<c@x>', thread_id: '<t3@x>' },
+    ]
+    expect(deduplicateByThread(ranked).map((r) => r.id)).toEqual([
+      '<a@x>',
+      '<b@x>',
+      '<c@x>',
+    ])
+  })
+
+  it('falls back to id when thread_id is missing', () => {
+    const ranked = [
+      { id: '<a@x>', thread_id: null },
+      { id: '<a@x>', thread_id: null },
+      { id: '<b@x>' },
+    ]
+    expect(deduplicateByThread(ranked).map((r) => r.id)).toEqual(['<a@x>', '<b@x>'])
+  })
+
+  it('drops rows without id or thread_id', () => {
+    const ranked = [{ score: 0.9 }, { id: '<a@x>', thread_id: '<t@x>' }]
+    expect(deduplicateByThread(ranked)).toHaveLength(1)
+  })
+
+  it('handles empty input', () => {
+    expect(deduplicateByThread([])).toEqual([])
   })
 })
