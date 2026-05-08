@@ -8,6 +8,17 @@ const DIMENSION = 384
 const DISTANCE_METRIC = 'cosine'
 const DATA_TYPE = 'float32'
 
+// Vector Buckets only allows string/boolean values for *filterable* metadata.
+// Everything that isn't `mailbox_id` (the only key we filter on in the search
+// edge function) goes here so the API doesn't reject numeric/long fields.
+const NON_FILTERABLE_METADATA_KEYS = [
+  'message_id',
+  'subject',
+  'from_email',
+  'ts',
+  'embedding_model',
+]
+
 /**
  * Create the vector bucket if it doesn't exist
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
@@ -48,6 +59,9 @@ async function setup(supabase) {
     dataType: DATA_TYPE,
     dimension: DIMENSION,
     distanceMetric: DISTANCE_METRIC,
+    metadataConfiguration: {
+      nonFilterableMetadataKeys: NON_FILTERABLE_METADATA_KEYS,
+    },
   })
 }
 
@@ -76,6 +90,7 @@ module.exports = {
   DIMENSION,
   DISTANCE_METRIC,
   DATA_TYPE,
+  NON_FILTERABLE_METADATA_KEYS,
 }
 
 // Run if executed directly

@@ -9,6 +9,7 @@ const {
   DIMENSION,
   DISTANCE_METRIC,
   DATA_TYPE,
+  NON_FILTERABLE_METADATA_KEYS,
 } = require('../../../scripts/setup-vector-bucket.js')
 
 describe('setup-vector-bucket constants', () => {
@@ -30,6 +31,23 @@ describe('setup-vector-bucket constants', () => {
 
   it('uses float32 data type', () => {
     expect(DATA_TYPE).toBe('float32')
+  })
+
+  it('marks display-only metadata keys as non-filterable', () => {
+    // Vector Buckets validates filterable metadata against a strict schema —
+    // listing these as non-filterable lets us store them as plain strings
+    // without per-key type configuration.
+    expect(NON_FILTERABLE_METADATA_KEYS).toEqual([
+      'message_id',
+      'subject',
+      'from_email',
+      'ts',
+      'embedding_model',
+    ])
+  })
+
+  it('keeps mailbox_id filterable so the search function can scope by list', () => {
+    expect(NON_FILTERABLE_METADATA_KEYS).not.toContain('mailbox_id')
   })
 })
 
@@ -142,6 +160,15 @@ describe('setup', () => {
       dataType: 'float32',
       dimension: 384,
       distanceMetric: 'cosine',
+      metadataConfiguration: {
+        nonFilterableMetadataKeys: [
+          'message_id',
+          'subject',
+          'from_email',
+          'ts',
+          'embedding_model',
+        ],
+      },
     })
   })
 })

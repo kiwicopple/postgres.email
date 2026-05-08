@@ -43,8 +43,10 @@ describe('buildVectors', () => {
     expect(vectors[0].metadata.mailbox_id).toBe('pgsql-hackers')
     expect(vectors[0].metadata.subject).toBe('PostgreSQL Discussion')
     expect(vectors[0].metadata.from_email).toBe('dev@example.org')
-    expect(vectors[0].metadata.chunk_index).toBe(0)
     expect(vectors[0].metadata.embedding_model).toBe('gte-small')
+    // chunk_index is encoded in the key (#chunk0), not metadata —
+    // the Vector Buckets API rejects that key name in metadata.
+    expect(vectors[0].metadata.chunk_index).toBeUndefined()
   })
 
   it('includes embedding_model in metadata', () => {

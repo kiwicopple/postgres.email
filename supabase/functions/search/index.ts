@@ -35,11 +35,18 @@ export function deduplicateResults(
   return unique
 }
 
+function chunkIndexFromKey(key: unknown): number | undefined {
+  if (typeof key !== "string") return undefined
+  const m = key.match(/#chunk(\d+)$/)
+  return m ? Number(m[1]) : undefined
+}
+
 /**
  * Merge vector results with full message rows, preserving ranking order.
  */
 export function rankResults(
   uniqueResults: Array<{
+    key?: string
     metadata?: Record<string, unknown>
     distance?: number
   }>,
@@ -54,7 +61,7 @@ export function rankResults(
       return {
         ...msg,
         score: r.distance,
-        matched_chunk: r.metadata?.chunk_index,
+        matched_chunk: chunkIndexFromKey(r.key),
       }
     })
     .filter(Boolean) as Array<Record<string, unknown>>
