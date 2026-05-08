@@ -63,8 +63,8 @@ export function rankResults(
     .filter(Boolean) as Array<Record<string, unknown>>
 }
 
-Deno.serve(
-  withSupabase({ auth: "secret" }, async (req, ctx) => {
+export default {
+  fetch: withSupabase({ auth: "secret" }, async (req, ctx) => {
     if (req.method === "OPTIONS") {
       return new Response("ok", { headers: corsHeaders })
     }
@@ -141,4 +141,4 @@ Deno.serve(
       })
     }
   }),
-)
+}
