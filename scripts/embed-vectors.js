@@ -89,7 +89,6 @@ function buildVectors(chunks, embeddings) {
       subject: chunk.subject || '',
       from_email: chunk.from_email || '',
       ts: chunk.ts ? new Date(chunk.ts).toISOString() : '',
-      chunk_index: chunk.chunk_index,
       embedding_model: EMBEDDING_MODEL,
     },
   }))

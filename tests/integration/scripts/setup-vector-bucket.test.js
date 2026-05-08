@@ -8,6 +8,8 @@ const {
   INDEX_NAME,
   DIMENSION,
   DISTANCE_METRIC,
+  DATA_TYPE,
+  NON_FILTERABLE_METADATA_KEYS,
 } = require('../../../scripts/setup-vector-bucket.js')
 
 describe('setup-vector-bucket constants', () => {
@@ -25,6 +27,27 @@ describe('setup-vector-bucket constants', () => {
 
   it('uses cosine distance metric', () => {
     expect(DISTANCE_METRIC).toBe('cosine')
+  })
+
+  it('uses float32 data type', () => {
+    expect(DATA_TYPE).toBe('float32')
+  })
+
+  it('marks display-only metadata keys as non-filterable', () => {
+    // Vector Buckets validates filterable metadata against a strict schema —
+    // listing these as non-filterable lets us store them as plain strings
+    // without per-key type configuration.
+    expect(NON_FILTERABLE_METADATA_KEYS).toEqual([
+      'message_id',
+      'subject',
+      'from_email',
+      'ts',
+      'embedding_model',
+    ])
+  })
+
+  it('keeps mailbox_id filterable so the search function can scope by list', () => {
+    expect(NON_FILTERABLE_METADATA_KEYS).not.toContain('mailbox_id')
   })
 })
 
@@ -134,8 +157,18 @@ describe('setup', () => {
     expect(supabase.storage.vectors.from).toHaveBeenCalledWith('email-embeddings')
     expect(createIndex).toHaveBeenCalledWith({
       indexName: 'email-chunks',
+      dataType: 'float32',
       dimension: 384,
       distanceMetric: 'cosine',
+      metadataConfiguration: {
+        nonFilterableMetadataKeys: [
+          'message_id',
+          'subject',
+          'from_email',
+          'ts',
+          'embedding_model',
+        ],
+      },
     })
   })
 })

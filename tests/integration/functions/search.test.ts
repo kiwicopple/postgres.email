@@ -7,8 +7,15 @@ import { describe, it, expect } from 'vitest'
  */
 
 type VectorResult = {
+  key?: string
   metadata?: Record<string, unknown>
   distance?: number
+}
+
+function chunkIndexFromKey(key: unknown): number | undefined {
+  if (typeof key !== 'string') return undefined
+  const m = key.match(/#chunk(\d+)$/)
+  return m ? Number(m[1]) : undefined
 }
 
 function deduplicateResults(vectorResults: VectorResult[]): VectorResult[] {
@@ -39,7 +46,7 @@ function rankResults(
       return {
         ...msg,
         score: r.distance,
-        matched_chunk: r.metadata?.chunk_index,
+        matched_chunk: chunkIndexFromKey(r.key),
       }
     })
     .filter(Boolean) as Array<Record<string, unknown>>
@@ -49,46 +56,46 @@ function rankResults(
 
 const vectorResults: VectorResult[] = [
   {
+    key: '<msg-1@example.org>#chunk0',
     distance: 0.95,
     metadata: {
       message_id: '<msg-1@example.org>',
       mailbox_id: 'pgsql-hackers',
       subject: 'WAL improvements',
       from_email: 'dev@example.org',
-      chunk_index: 0,
       embedding_model: 'gte-small',
     },
   },
   {
+    key: '<msg-1@example.org>#chunk1',
     distance: 0.90,
     metadata: {
       message_id: '<msg-1@example.org>',
       mailbox_id: 'pgsql-hackers',
       subject: 'WAL improvements',
       from_email: 'dev@example.org',
-      chunk_index: 1,
       embedding_model: 'gte-small',
     },
   },
   {
+    key: '<msg-2@example.org>#chunk0',
     distance: 0.85,
     metadata: {
       message_id: '<msg-2@example.org>',
       mailbox_id: 'pgsql-general',
       subject: 'Replication setup',
       from_email: 'admin@example.org',
-      chunk_index: 0,
       embedding_model: 'gte-small',
     },
   },
   {
+    key: '<msg-3@example.org>#chunk2',
     distance: 0.80,
     metadata: {
       message_id: '<msg-3@example.org>',
       mailbox_id: 'pgsql-hackers',
       subject: 'Index scan optimization',
       from_email: 'perf@example.org',
-      chunk_index: 2,
       embedding_model: 'gte-small',
     },
   },
@@ -138,7 +145,7 @@ describe('deduplicateResults', () => {
     const unique = deduplicateResults(vectorResults)
     // msg-1 has chunks at distance 0.95 and 0.90 — keep 0.95
     expect(unique[0].distance).toBe(0.95)
-    expect(unique[0].metadata?.chunk_index).toBe(0)
+    expect(unique[0].key).toBe('<msg-1@example.org>#chunk0')
   })
 
   it('handles empty input', () => {
@@ -158,8 +165,8 @@ describe('deduplicateResults', () => {
 
   it('handles results with missing message_id in metadata', () => {
     const results = [
-      { distance: 0.9, metadata: { chunk_index: 0 } },
-      { distance: 0.8, metadata: { message_id: '<msg@test>', chunk_index: 0 } },
+      { distance: 0.9, metadata: {} },
+      { distance: 0.8, metadata: { message_id: '<msg@test>' } },
     ]
     const unique = deduplicateResults(results)
     expect(unique).toHaveLength(1)

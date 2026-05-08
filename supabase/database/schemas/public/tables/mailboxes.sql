@@ -14,8 +14,5 @@ ALTER TABLE public.mailboxes
 ALTER TABLE public.mailboxes
   ADD CONSTRAINT mailboxes_pkey PRIMARY KEY (id);
 
-GRANT ALL ON public.mailboxes TO anon;
-
-GRANT ALL ON public.mailboxes TO authenticated;
-
-GRANT ALL ON public.mailboxes TO service_role;
+-- Read-only API surface; see messages.sql for context.
+GRANT SELECT ON public.mailboxes TO anon, authenticated, service_role;

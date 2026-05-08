@@ -6,6 +6,18 @@ const BUCKET_NAME = 'email-embeddings'
 const INDEX_NAME = 'email-chunks'
 const DIMENSION = 384
 const DISTANCE_METRIC = 'cosine'
+const DATA_TYPE = 'float32'
+
+// Vector Buckets only allows string/boolean values for *filterable* metadata.
+// Everything that isn't `mailbox_id` (the only key we filter on in the search
+// edge function) goes here so the API doesn't reject numeric/long fields.
+const NON_FILTERABLE_METADATA_KEYS = [
+  'message_id',
+  'subject',
+  'from_email',
+  'ts',
+  'embedding_model',
+]
 
 /**
  * Create the vector bucket if it doesn't exist
@@ -44,8 +56,12 @@ async function setup(supabase) {
   await createBucketIfNotExists(supabase, BUCKET_NAME)
   await createIndexIfNotExists(supabase, BUCKET_NAME, {
     indexName: INDEX_NAME,
+    dataType: DATA_TYPE,
     dimension: DIMENSION,
     distanceMetric: DISTANCE_METRIC,
+    metadataConfiguration: {
+      nonFilterableMetadataKeys: NON_FILTERABLE_METADATA_KEYS,
+    },
   })
 }
 
@@ -57,6 +73,7 @@ async function main() {
   console.log(`  Index:  ${INDEX_NAME}`)
   console.log(`  Dims:   ${DIMENSION}`)
   console.log(`  Metric: ${DISTANCE_METRIC}`)
+  console.log(`  Type:   ${DATA_TYPE}`)
 
   await setup(supabase)
 
@@ -72,6 +89,8 @@ module.exports = {
   INDEX_NAME,
   DIMENSION,
   DISTANCE_METRIC,
+  DATA_TYPE,
+  NON_FILTERABLE_METADATA_KEYS,
 }
 
 // Run if executed directly

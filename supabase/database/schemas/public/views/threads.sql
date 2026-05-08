@@ -58,8 +58,5 @@ CREATE VIEW public.threads WITH (security_invoker=on) AS WITH RECURSIVE threads(
     headers
    FROM threads;
 
-GRANT ALL ON public.threads TO anon;
-
-GRANT ALL ON public.threads TO authenticated;
-
-GRANT ALL ON public.threads TO service_role;
+-- Read-only API surface; see messages.sql for context.
+GRANT SELECT ON public.threads TO anon, authenticated, service_role;
