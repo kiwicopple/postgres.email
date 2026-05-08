@@ -8,6 +8,7 @@ const {
   INDEX_NAME,
   DIMENSION,
   DISTANCE_METRIC,
+  DATA_TYPE,
 } = require('../../../scripts/setup-vector-bucket.js')
 
 describe('setup-vector-bucket constants', () => {
@@ -25,6 +26,10 @@ describe('setup-vector-bucket constants', () => {
 
   it('uses cosine distance metric', () => {
     expect(DISTANCE_METRIC).toBe('cosine')
+  })
+
+  it('uses float32 data type', () => {
+    expect(DATA_TYPE).toBe('float32')
   })
 })
 
@@ -134,6 +139,7 @@ describe('setup', () => {
     expect(supabase.storage.vectors.from).toHaveBeenCalledWith('email-embeddings')
     expect(createIndex).toHaveBeenCalledWith({
       indexName: 'email-chunks',
+      dataType: 'float32',
       dimension: 384,
       distanceMetric: 'cosine',
     })

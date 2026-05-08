@@ -6,6 +6,7 @@ const BUCKET_NAME = 'email-embeddings'
 const INDEX_NAME = 'email-chunks'
 const DIMENSION = 384
 const DISTANCE_METRIC = 'cosine'
+const DATA_TYPE = 'float32'
 
 /**
  * Create the vector bucket if it doesn't exist
@@ -44,6 +45,7 @@ async function setup(supabase) {
   await createBucketIfNotExists(supabase, BUCKET_NAME)
   await createIndexIfNotExists(supabase, BUCKET_NAME, {
     indexName: INDEX_NAME,
+    dataType: DATA_TYPE,
     dimension: DIMENSION,
     distanceMetric: DISTANCE_METRIC,
   })
@@ -57,6 +59,7 @@ async function main() {
   console.log(`  Index:  ${INDEX_NAME}`)
   console.log(`  Dims:   ${DIMENSION}`)
   console.log(`  Metric: ${DISTANCE_METRIC}`)
+  console.log(`  Type:   ${DATA_TYPE}`)
 
   await setup(supabase)
 
@@ -72,6 +75,7 @@ module.exports = {
   INDEX_NAME,
   DIMENSION,
   DISTANCE_METRIC,
+  DATA_TYPE,
 }
 
 // Run if executed directly
