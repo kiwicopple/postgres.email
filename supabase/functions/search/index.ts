@@ -16,7 +16,11 @@ export function deduplicateResults(
     metadata?: Record<string, unknown>
     distance?: number
   }>,
-): Array<{ key?: string; metadata?: Record<string, unknown>; distance?: number }> {
+): Array<{
+  key?: string
+  metadata?: Record<string, unknown>
+  distance?: number
+}> {
   const seen = new Set<string>()
   const unique: typeof vectorResults = []
 
@@ -63,7 +67,29 @@ export function rankResults(
     .filter(Boolean) as Array<Record<string, unknown>>
 }
 
-export default {
+/**
+ * Collapse ranked hits to one row per thread, keeping the highest-scoring hit.
+ * Inputs are already ordered best-first, so the first occurrence per thread wins.
+ */
+export function deduplicateByThread(
+  ranked: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  const seen = new Set<string>()
+  const unique: Array<Record<string, unknown>> = []
+
+  for (const row of ranked) {
+    const threadId = row.thread_id as string | null | undefined
+    // Fall back to message id when thread_id is missing — treats the row as its own thread.
+    const key = threadId ?? (row.id as string | undefined)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    unique.push(row)
+  }
+
+  return unique
+}
+
+const handler = {
   fetch: withSupabase({ auth: ["publishable", "secret"] }, async (req, ctx) => {
     if (req.method === "OPTIONS") {
       return new Response("ok", { headers: corsHeaders })
@@ -116,20 +142,27 @@ export default {
       // 3. Deduplicate by message_id (multiple chunks may match from same email)
       const uniqueResults = deduplicateResults(vectorResults?.vectors ?? [])
 
-      // 4. Fetch full messages from Postgres (supabaseAdmin bypasses RLS)
+      // 4. Fetch full messages from Postgres (supabaseAdmin bypasses RLS).
+      //    Query the `threads` view so each result carries `thread_id`, which is
+      //    what the thread page route resolves on. A search hit may be any
+      //    message in a thread (root or reply), so we can't navigate by message id.
       const messageIds = uniqueResults
         .map((r) => r.metadata?.message_id)
         .filter(Boolean) as string[]
 
       const { data: messages } = await ctx.supabaseAdmin
-        .from("messages")
-        .select("id, mailbox_id, subject, from_email, ts, body_text")
+        .from("threads")
+        .select("id, thread_id, mailbox_id, subject, from_email, ts, body_text")
         .in("id", messageIds)
 
       // 5. Merge scores with messages and preserve ranking order
       const ranked = rankResults(uniqueResults, messages ?? [])
 
-      return new Response(JSON.stringify(ranked), {
+      // 6. Collapse to one hit per thread so users see distinct conversations,
+      //    not many replies from the same thread.
+      const collapsed = deduplicateByThread(ranked)
+
+      return new Response(JSON.stringify(collapsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       })
@@ -142,3 +175,5 @@ export default {
     }
   }),
 }
+
+export default handler

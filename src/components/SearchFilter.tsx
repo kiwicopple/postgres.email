@@ -35,6 +35,8 @@ export default function SearchFilter({
     const params = new URLSearchParams()
     params.set("q", q.trim())
     if (currentList) params.set("list", currentList)
+    const mode = searchParams.get("mode")
+    if (mode) params.set("mode", mode)
     router.push(`/lists/search?${params.toString()}`)
   }
 
