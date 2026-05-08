@@ -46,14 +46,9 @@ ALTER TABLE public.messages
 ALTER TABLE public.messages
   ADD CONSTRAINT messages_pkey PRIMARY KEY (id);
 
-GRANT ALL ON public.messages TO anon;
-
-GRANT ALL ON public.messages TO authenticated;
-
-GRANT ALL ON public.messages TO service_role;
-
--- GRANT ALL doesn't actually grant SELECT/INSERT/UPDATE/DELETE for these roles
--- in Supabase (only TRUNCATE/REFERENCES/TRIGGER come through). We need
--- explicit SELECT so PostgREST can read for the search edge function and
--- frontend queries.
+-- The Data API is read-only for this archive — frontend queries as anon,
+-- the search edge function queries as service_role via @supabase/server.
+-- All writes go through direct postgres connections (parse, embed scripts).
+-- Per https://github.com/orgs/supabase/discussions/45329, new tables in
+-- public no longer auto-grant: every role needs explicit grants.
 GRANT SELECT ON public.messages TO anon, authenticated, service_role;
