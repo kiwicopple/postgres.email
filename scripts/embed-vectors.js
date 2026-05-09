@@ -1,13 +1,67 @@
 require('dotenv').config()
 
 const { parseArgs, DEFAULT_LISTS } = require('./lib/config')
-const { getPool, getSupabase, closePool } = require('./lib/db')
+const { getPool, getSupabase, closePool, withRetry } = require('./lib/db')
 const { createLogger } = require('./lib/logger')
 const { chunkText } = require('./lib/chunker')
 
 const BATCH_SIZE = 100
 const UPSERT_BATCH_SIZE = 250
 const EMBEDDING_MODEL = 'gte-small'
+
+const TRANSIENT_PUT_VECTOR_PATTERNS = [
+  'fetch failed',
+  'Internal Server Error',
+  'Bad Gateway',
+  'Service Unavailable',
+  'Gateway Timeout',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EAI_AGAIN',
+  'ENOTFOUND',
+  'socket hang up',
+]
+
+function isTransientPutVectorError(message) {
+  if (!message) return false
+  return TRANSIENT_PUT_VECTOR_PATTERNS.some((p) => message.includes(p))
+}
+
+const PUT_VECTORS_TIMEOUT_MS = 60_000
+
+function withTimeout(promise, ms, label) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
+async function putVectorsWithRetry(vectorIndex, vectors, { retries = 6, baseDelayMs = 1000 } = {}) {
+  let attempt = 0
+  while (true) {
+    let errMsg = null
+    try {
+      const { error } = await withTimeout(
+        vectorIndex.putVectors({ vectors }),
+        PUT_VECTORS_TIMEOUT_MS,
+        'putVectors'
+      )
+      if (!error) return
+      errMsg = error.message || String(error)
+    } catch (err) {
+      errMsg = err?.message || String(err)
+    }
+    attempt++
+    const transient = isTransientPutVectorError(errMsg) || errMsg.includes('timed out')
+    if (attempt > retries || !transient) {
+      throw new Error(`putVectors failed: ${errMsg}`)
+    }
+    const delay = baseDelayMs * Math.pow(2, attempt - 1)
+    console.warn(`\n[putVectors retry] attempt ${attempt}/${retries} after "${errMsg}" — sleeping ${delay}ms`)
+    await new Promise((r) => setTimeout(r, delay))
+  }
+}
 
 /**
  * Fetch a batch of messages that haven't been embedded yet.
@@ -27,8 +81,10 @@ async function fetchUnembeddedBatch(pool, lists, batchSize) {
     ORDER BY ts DESC
     LIMIT $2
   `
-  const { rows } = await pool.query(query, [lists, batchSize])
-  return rows
+  return withRetry(async () => {
+    const { rows } = await pool.query(query, [lists, batchSize])
+    return rows
+  }, { label: 'fetchUnembeddedBatch' })
 }
 
 /**
@@ -38,9 +94,9 @@ async function fetchUnembeddedBatch(pool, lists, batchSize) {
  */
 async function markMessagesEmbedded(pool, messageIds) {
   if (messageIds.length === 0) return
-  await pool.query(
-    `UPDATE messages SET embedded_at = now() WHERE id = ANY($1)`,
-    [messageIds]
+  await withRetry(
+    () => pool.query(`UPDATE messages SET embedded_at = now() WHERE id = ANY($1)`, [messageIds]),
+    { label: `markMessagesEmbedded(n=${messageIds.length})` }
   )
 }
 
@@ -179,8 +235,7 @@ async function main() {
           // Upsert to vector bucket in batches
           for (let i = 0; i < vectors.length; i += UPSERT_BATCH_SIZE) {
             const upsertBatch = vectors.slice(i, i + UPSERT_BATCH_SIZE)
-            const { error } = await vectorIndex.putVectors({ vectors: upsertBatch })
-            if (error) throw new Error(`putVectors failed: ${error.message}`)
+            await putVectorsWithRetry(vectorIndex, upsertBatch)
           }
         }
       }
