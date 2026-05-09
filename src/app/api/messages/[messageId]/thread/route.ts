@@ -7,7 +7,12 @@ export async function GET(
   { params }: { params: { messageId: string } }
 ) {
   const { messageId: rawMessageId } = params
-  const messageId = normalizeMessageId(decodeURIComponent(rawMessageId))
+  let messageId: string
+  try {
+    messageId = normalizeMessageId(decodeURIComponent(rawMessageId))
+  } catch {
+    return NextResponse.json({ error: "Invalid message id" }, { status: 400 })
+  }
 
   const { threadId, mailboxId, error } = await getThreadIdByMessageId(messageId)
 

@@ -12,6 +12,52 @@ type VectorResult = {
   distance?: number
 }
 
+const DEFAULT_LIMIT = 20
+const MAX_LIMIT = 50
+const MAX_QUERY_LENGTH = 2000
+
+type SearchPayload = {
+  query: string
+  mailbox_id?: string
+  limit: number
+}
+
+function parseSearchPayload(raw: unknown): SearchPayload | { error: string } {
+  if (!raw || typeof raw !== 'object') {
+    return { error: 'Request body must be a JSON object' }
+  }
+
+  const body = raw as Record<string, unknown>
+  const query = typeof body.query === 'string' ? body.query.trim() : ''
+  if (!query) {
+    return { error: 'Query parameter is required and must be a non-empty string' }
+  }
+  if (query.length > MAX_QUERY_LENGTH) {
+    return { error: `Query is too long (max ${MAX_QUERY_LENGTH} chars)` }
+  }
+
+  let limit = DEFAULT_LIMIT
+  if (body.limit !== undefined) {
+    if (typeof body.limit !== 'number' || !Number.isFinite(body.limit)) {
+      return { error: 'limit must be a number' }
+    }
+    limit = Math.trunc(body.limit)
+  }
+  if (limit < 1 || limit > MAX_LIMIT) {
+    return { error: `limit must be between 1 and ${MAX_LIMIT}` }
+  }
+
+  let mailboxID: string | undefined
+  if (body.mailbox_id !== undefined) {
+    if (typeof body.mailbox_id !== 'string' || body.mailbox_id.trim() === '') {
+      return { error: 'mailbox_id must be a non-empty string when provided' }
+    }
+    mailboxID = body.mailbox_id.trim()
+  }
+
+  return { query, mailbox_id: mailboxID, limit }
+}
+
 function chunkIndexFromKey(key: unknown): number | undefined {
   if (typeof key !== 'string') return undefined
   const m = key.match(/#chunk(\d+)$/)
@@ -289,5 +335,58 @@ describe('deduplicateByThread', () => {
 
   it('handles empty input', () => {
     expect(deduplicateByThread([])).toEqual([])
+  })
+})
+
+describe('parseSearchPayload', () => {
+  it('accepts valid payload and trims query/mailbox', () => {
+    const parsed = parseSearchPayload({
+      query: '  wal replay  ',
+      mailbox_id: '  pgsql-hackers  ',
+      limit: 10,
+    })
+    expect(parsed).toEqual({
+      query: 'wal replay',
+      mailbox_id: 'pgsql-hackers',
+      limit: 10,
+    })
+  })
+
+  it('applies default limit when missing', () => {
+    const parsed = parseSearchPayload({ query: 'replication' })
+    expect(parsed).toEqual({
+      query: 'replication',
+      limit: 20,
+    })
+  })
+
+  it('rejects invalid limit values', () => {
+    expect(parseSearchPayload({ query: 'x', limit: 0 })).toEqual({
+      error: 'limit must be between 1 and 50',
+    })
+    expect(parseSearchPayload({ query: 'x', limit: 51 })).toEqual({
+      error: 'limit must be between 1 and 50',
+    })
+    expect(parseSearchPayload({ query: 'x', limit: '10' })).toEqual({
+      error: 'limit must be a number',
+    })
+  })
+
+  it('rejects empty query and oversized query', () => {
+    expect(parseSearchPayload({ query: '   ' })).toEqual({
+      error: 'Query parameter is required and must be a non-empty string',
+    })
+    expect(parseSearchPayload({ query: 'x'.repeat(2001) })).toEqual({
+      error: 'Query is too long (max 2000 chars)',
+    })
+  })
+
+  it('rejects invalid mailbox_id', () => {
+    expect(parseSearchPayload({ query: 'x', mailbox_id: '' })).toEqual({
+      error: 'mailbox_id must be a non-empty string when provided',
+    })
+    expect(parseSearchPayload({ query: 'x', mailbox_id: 42 })).toEqual({
+      error: 'mailbox_id must be a non-empty string when provided',
+    })
   })
 })

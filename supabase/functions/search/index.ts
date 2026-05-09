@@ -5,6 +5,51 @@ import { withSupabase } from "npm:@supabase/server"
 import { corsHeaders } from "../_shared/cors.ts"
 
 const model = new Supabase.ai.Session("gte-small")
+const DEFAULT_LIMIT = 20
+const MAX_LIMIT = 50
+const MAX_QUERY_LENGTH = 2000
+
+type SearchPayload = {
+  query: string
+  mailbox_id?: string
+  limit: number
+}
+
+function parseSearchPayload(raw: unknown): SearchPayload | { error: string } {
+  if (!raw || typeof raw !== "object") {
+    return { error: "Request body must be a JSON object" }
+  }
+
+  const body = raw as Record<string, unknown>
+  const query = typeof body.query === "string" ? body.query.trim() : ""
+  if (!query) {
+    return { error: "Query parameter is required and must be a non-empty string" }
+  }
+  if (query.length > MAX_QUERY_LENGTH) {
+    return { error: `Query is too long (max ${MAX_QUERY_LENGTH} chars)` }
+  }
+
+  let limit = DEFAULT_LIMIT
+  if (body.limit !== undefined) {
+    if (typeof body.limit !== "number" || !Number.isFinite(body.limit)) {
+      return { error: "limit must be a number" }
+    }
+    limit = Math.trunc(body.limit)
+  }
+  if (limit < 1 || limit > MAX_LIMIT) {
+    return { error: `limit must be between 1 and ${MAX_LIMIT}` }
+  }
+
+  let mailboxID: string | undefined
+  if (body.mailbox_id !== undefined) {
+    if (typeof body.mailbox_id !== "string" || body.mailbox_id.trim() === "") {
+      return { error: "mailbox_id must be a non-empty string when provided" }
+    }
+    mailboxID = body.mailbox_id.trim()
+  }
+
+  return { query, mailbox_id: mailboxID, limit }
+}
 
 /**
  * Deduplicate vector results by message_id.
@@ -96,19 +141,17 @@ const handler = {
     }
 
     try {
-      const { query, mailbox_id, limit = 20 } = await req.json()
-
-      if (!query || typeof query !== "string") {
+      const payload = parseSearchPayload(await req.json())
+      if ("error" in payload) {
         return new Response(
-          JSON.stringify({
-            error: "Query parameter is required and must be a string",
-          }),
+          JSON.stringify({ error: payload.error }),
           {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           },
         )
       }
+      const { query, mailbox_id, limit } = payload
 
       // 1. Embed the user query with gte-small (runs on-device in the edge runtime)
       const queryVector = (await model.run(query, {
