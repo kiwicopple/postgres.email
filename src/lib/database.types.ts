@@ -7,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       mailboxes: {
@@ -55,6 +30,7 @@ export type Database = {
           bcc_addresses: Json | null
           body_text: string | null
           cc_addresses: Json | null
+          embedded_at: string | null
           embedded_files: Json | null
           from_addresses: Json | null
           from_email: string | null
@@ -65,6 +41,7 @@ export type Database = {
           seq_num: number | null
           size: number | null
           subject: string | null
+          thread_id: string | null
           to_addresses: Json | null
           ts: string | null
         }
@@ -73,6 +50,7 @@ export type Database = {
           bcc_addresses?: Json | null
           body_text?: string | null
           cc_addresses?: Json | null
+          embedded_at?: string | null
           embedded_files?: Json | null
           from_addresses?: Json | null
           from_email?: string | null
@@ -83,6 +61,7 @@ export type Database = {
           seq_num?: number | null
           size?: number | null
           subject?: string | null
+          thread_id?: string | null
           to_addresses?: Json | null
           ts?: string | null
         }
@@ -91,6 +70,7 @@ export type Database = {
           bcc_addresses?: Json | null
           body_text?: string | null
           cc_addresses?: Json | null
+          embedded_at?: string | null
           embedded_files?: Json | null
           from_addresses?: Json | null
           from_email?: string | null
@@ -101,6 +81,7 @@ export type Database = {
           seq_num?: number | null
           size?: number | null
           subject?: string | null
+          thread_id?: string | null
           to_addresses?: Json | null
           ts?: string | null
         }
@@ -136,7 +117,53 @@ export type Database = {
           to_addresses: Json | null
           ts: string | null
         }
-        Relationships: []
+        Insert: {
+          attachments?: Json | null
+          bcc_addresses?: Json | null
+          body_text?: string | null
+          cc_addresses?: Json | null
+          embedded_files?: Json | null
+          from_addresses?: Json | null
+          from_email?: string | null
+          headers?: Json | null
+          id?: string | null
+          in_reply_to?: string | null
+          mailbox_id?: string | null
+          seq_num?: number | null
+          size?: number | null
+          subject?: string | null
+          thread_id?: string | null
+          to_addresses?: Json | null
+          ts?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          bcc_addresses?: Json | null
+          body_text?: string | null
+          cc_addresses?: Json | null
+          embedded_files?: Json | null
+          from_addresses?: Json | null
+          from_email?: string | null
+          headers?: Json | null
+          id?: string | null
+          in_reply_to?: string | null
+          mailbox_id?: string | null
+          seq_num?: number | null
+          size?: number | null
+          subject?: string | null
+          thread_id?: string | null
+          to_addresses?: Json | null
+          ts?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_mailbox_id_fkey"
+            columns: ["mailbox_id"]
+            isOneToOne: false
+            referencedRelation: "mailboxes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -269,9 +296,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

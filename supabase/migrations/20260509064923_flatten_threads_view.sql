@@ -1,0 +1,18 @@
+CREATE OR REPLACE VIEW public.threads WITH (security_invoker=on) AS SELECT id,
+    thread_id,
+    mailbox_id,
+    in_reply_to,
+    ts,
+    subject,
+    from_email,
+    to_addresses,
+    cc_addresses,
+    bcc_addresses,
+    from_addresses,
+    seq_num,
+    size,
+    attachments,
+    body_text,
+    embedded_files,
+    headers
+   FROM public.messages;

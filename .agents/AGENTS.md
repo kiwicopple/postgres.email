@@ -86,18 +86,18 @@ postgres.email/
 
 ### Views
 
-**threads** (Recursive CTE)
-- Flattens message threads into a single view
-- Adds `thread_id` to each message (ID of root message)
-- Allows fetching entire thread with single query: `WHERE thread_id = ?`
+**threads** (flat pass-through over `public.messages`)
+- Thin alias — `thread_id` is materialized on `messages` and a `BEFORE INSERT/UPDATE` trigger on `messages` sets it (root → self, reply → parent's `thread_id`, missing parent → self).
+- Backed by `messages_thread_id_ts_idx` on `(thread_id, ts)`, so `WHERE thread_id = ?` is an index scan.
 
 ### Indexes
 
 - `messages_mailbox_id_idx`: Foreign key index for joins
 - `messages_ts_idx`: For ordering by timestamp
-- `messages(in_reply_to)`: For threading queries
+- `messages(in_reply_to)`: For threading queries (used by the backfill's parent→child propagation)
 - `idx_messages_mailbox_root_threads`: Partial index for root threads (WHERE in_reply_to IS NULL) per mailbox
 - `idx_messages_mailbox_ts`: Composite index for all messages per mailbox ordered by timestamp
+- `messages_thread_id_ts_idx`: Composite index for `WHERE thread_id = ? ORDER BY ts` (thread page) and the search id-batch lookup
 - `messages_embedded_at_idx`: Partial index on `embedded_at IS NULL` for the embed pipeline's "what's left to process" query
 
 ## Critical Performance Patterns
@@ -382,8 +382,8 @@ const isActive = pathname.startsWith(`/lists/${item.id}`)
   - `MessageListMetadata`: Type for optimized list queries
 
 - **`src/models/thread.ts`**
-  - `getThread(id)`: Fetch entire thread from threads view
-  - Uses recursive CTE view for performance
+  - `getThread(id)`: Fetch entire thread from threads view (filters by materialized `thread_id`)
+  - `getThreadIdByMessageId(id)`: Resolve a message id to its thread root
 
 ### Scripts
 
@@ -454,8 +454,9 @@ Auth options for `withSupabase`: `"user"` | `"publishable"` | `"secret"` | `"non
 ### 4. Email Threading
 
 - Threading is based on `in_reply_to` header
-- Some emails have broken threading (missing or incorrect headers)
-- The `threads` view handles this with recursive CTE
+- Some emails have broken threading (missing or incorrect headers) — these become their own thread (`thread_id = id`)
+- `thread_id` is materialized on `messages` by a `BEFORE INSERT/UPDATE` trigger
+- `scripts/parse.js` calls `repairThreadIds(pool)` (exported from `scripts/backfill-thread-id.js`) after each list, so previously-orphan replies inherit correctly when their parents arrive in a later load. The script is idempotent and can also be run standalone via `node -r dotenv/config scripts/backfill-thread-id.js dotenv_config_path=.env.prod`
 
 ### 5. Tailwind CSS Version
 

@@ -8,6 +8,7 @@ const iconv = require('iconv-lite')
 const { parseArgs, extractMailboxId, ARCHIVES_DIR, DEFAULT_LISTS } = require('./lib/config')
 const { getPool, ensureMailbox, updateMailboxCount, insertMessagesBatch, closePool } = require('./lib/db')
 const { createLogger } = require('./lib/logger')
+const { repairThreadIds } = require('./backfill-thread-id')
 
 const BATCH_SIZE = 100
 
@@ -181,6 +182,12 @@ async function main() {
       // Update message count
       await updateMailboxCount(pool, mailbox)
 
+      // Repair thread_ids for any rows whose parents have just arrived in
+      // this load — the trigger only sets thread_id on the row being
+      // inserted, so previously-orphan replies whose parents are now in
+      // the table need a propagation pass to inherit correctly.
+      await repairThreadIds(pool)
+
       console.log(`\n${'='.repeat(60)}`)
       console.log(`✨ Parse complete!`)
       console.log(`${'='.repeat(60)}`)
@@ -247,6 +254,12 @@ async function main() {
 
       // Update message count for this mailbox
       await updateMailboxCount(pool, list)
+
+      // Repair thread_ids for any rows whose parents have just arrived in
+      // this load — the trigger only sets thread_id on the row being
+      // inserted, so previously-orphan replies whose parents are now in
+      // the table need a propagation pass to inherit correctly.
+      await repairThreadIds(pool)
     }
 
     console.log(`\n${'='.repeat(60)}`)
